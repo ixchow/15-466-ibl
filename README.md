@@ -11,13 +11,17 @@ Screen Shot:
 
 ![Screen Shot](screenshot.png)
 
-Difficulties Encountered:
+How To Play:
 
-TODO: write several sentences about any difficulties you may have encountered in creating the game.
+TODO: describe the controls and (if needed) goals/strategy.
 
-Good Code:
+Changes From The Design Document:
 
-TODO: write a sentence or two about any code you think you did particularly well.
+TODO: what did you need to add/remove/modify from the original design? Why?
+
+Good / Bad / Ugly Code:
+
+TODO: provide examples of code you wrote from this project that you think is good (elegant, simple, useful), bad (hack-y, brittle, unreadable), and ugly (particularly inelegant). Provide a sentence or two of justification for the examples.
 
 # Using This Base Code
 
@@ -34,12 +38,24 @@ Before you dive into the code, it helps to understand the overall structure of t
     - ```read_chunk.hpp``` contains a function that reads a vector of structures prefixed by a magic number. It's surprising how many simple file formats you can create that only require such a function to access.
     - ```data_path.*pp``` contains a helper function that allows you to specify paths relative to the executable (instead of the current working directory). Very useful when loading assets.
 
+## Changes from Base0
+
+- export-meshes.py now supports exporting various subsets of points, normals, colors, textures, and edge lines (based on export filename).
+- export-meshes.py now exports just the referenced meshes (by mesh name).
+- export-scene.py is a new export script which writes the transform hierarchy (by object name) and mesh references for each object (by mesh name).
+
 ## Asset Build Instructions
 
-In order to generate the ```dist/meshes.blob``` file, tell blender to execute the ```meshes/export-meshes.py``` script:
+In order to generate the ```dist/crates.pnc``` file, tell blender to execute the ```meshes/export-meshes.py``` script:
 
 ```
-blender --background --python meshes/export-meshes.py -- meshes/meshes.blend dist/meshes.blob
+blender --background --python meshes/export-meshes.py -- meshes/crates.blend dist/crates.pnc
+```
+
+In order to generate the ```dist/crates.scene``` file, tell blender to execute the ```meshes/export-scene.py``` script:
+
+```
+blender --background --python meshes/export-scene.py -- meshes/crates.blend dist/crates.scene
 ```
 
 There is a Makefile in the ```meshes``` directory that will do this for you.
