@@ -58,7 +58,12 @@ if $(OS) = NT { #Windows
 NAMES =
 	main
 	data_path
+	compile_program
 	Game
+	Scene
+	Mode
+	Load
+	MeshBuffer
 	;
 
 if $(OS) = NT {

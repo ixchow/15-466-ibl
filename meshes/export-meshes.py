@@ -130,8 +130,7 @@ for obj in bpy.data.objects:
 	index += struct.pack('I', name_begin)
 	index += struct.pack('I', name_end)
 
-	start = vertex_count
-	index += struct.pack('I', start) #start
+	index += struct.pack('I', vertex_count) #vertex_begin
 	#...count will be written below
 
 	colors = None
@@ -188,8 +187,7 @@ for obj in bpy.data.objects:
 				assert(not filetype.texcoord)
 		vertex_count += len(mesh.edges) * 2
 
-	#count:
-	index += struct.pack('I', vertex_count - start)
+	index += struct.pack('I', vertex_count) #vertex_end
 
 
 #check that we wrote as much data as anticipated:

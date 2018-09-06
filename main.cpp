@@ -1,4 +1,10 @@
-//Game.hpp declares the "game" object, which handles game-specific stuff:
+//Mode.hpp declares the "Mode::current" static member variable, which is used to decide where event-handling, updating, and drawing events go:
+#include "Mode.hpp"
+
+//Load.hpp is included because of the call_load_functions() call:
+#include "Load.hpp"
+
+//The 'Game' mode plays the game:
 #include "Game.hpp"
 
 //GL.hpp will include a non-namespace-polluting set of opengl prototypes:
@@ -89,10 +95,15 @@ int main(int argc, char **argv) {
 	//Hide mouse cursor (note: showing can be useful for debugging):
 	//SDL_ShowCursor(SDL_DISABLE);
 
+	//------------ load assets --------------
 
-	//------------ create game object (loads assets) --------------
+	call_load_functions();
+
+	//------------ create game object --------------
 
 	std::shared_ptr< Game > game = std::make_shared< Game >();
+
+	Mode::set_current(game);
 
 	//------------ main loop ------------
 
