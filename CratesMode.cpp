@@ -109,6 +109,7 @@ bool CratesMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_siz
 			return true;
 		}
 		if (evt.type == SDL_MOUSEMOTION) {
+			//Note: float(window_size.y) * camera->fovy is a pixels-to-radians conversion factor
 			float yaw = evt.motion.xrel / float(window_size.y) * camera->fovy;
 			float pitch = evt.motion.yrel / float(window_size.y) * camera->fovy;
 			yaw = -yaw;
