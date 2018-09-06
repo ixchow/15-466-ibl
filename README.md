@@ -28,21 +28,29 @@ TODO: provide examples of code you wrote from this project that you think is goo
 Before you dive into the code, it helps to understand the overall structure of this repository.
 - Files you should read and/or edit:
     - ```main.cpp``` creates the game window and contains the main loop. You should read through this file to understand what it's doing, but you shouldn't need to change things (other than window title and size).
-    - ```Game.*pp``` declaration+definition for the Game struct. These files will contain the bulk of your code changes.
+    - ```GameMode.*pp``` declaration+definition for the Game struct. These files will contain the bulk of your code changes.
     - ```meshes/export-meshes.py``` exports meshes from a .blend file into a format usable by our game runtime. You will need to edit this file to add vertex color export code.
     - ```Jamfile``` responsible for telling FTJam how to build the project. If you add any additional .cpp files or want to change the name of your runtime executable you will need to modify this.
     - ```.gitignore``` ignores the ```objs/``` directory and the generated executable file. You will need to change it if your executable name changes. (If you find yourself changing it to ignore, e.g., your editor's swap files you should probably, instead be investigating making this change in the global git configuration.)
+    - ```Scene.*pp``` scene graph implementation
+- Files you should read the header for (and use):
+    - ```data_path.*pp``` contains a helper function that allows you to specify paths relative to the executable (instead of the current working directory). Very useful when loading assets.
+    - ```compile_program.*pp``` contains a helper function that compiles OpenGL shader programs.
 - Files you probably don't need to read or edit:
     - ```GL.hpp``` includes OpenGL prototypes without the namespace pollution of (e.g.) SDL's OpenGL header. It makes use of ```glcorearb.h``` and ```gl_shims.*pp``` to make this happen.
     - ```make-gl-shims.py``` does what it says on the tin. Included in case you are curious. You won't need to run it.
     - ```read_chunk.hpp``` contains a function that reads a vector of structures prefixed by a magic number. It's surprising how many simple file formats you can create that only require such a function to access.
-    - ```data_path.*pp``` contains a helper function that allows you to specify paths relative to the executable (instead of the current working directory). Very useful when loading assets.
 
 ## Changes from Base0
 
-- export-meshes.py now supports exporting various subsets of points, normals, colors, textures, and edge lines (based on export filename).
-- export-meshes.py now exports just the referenced meshes (by mesh name).
-- export-scene.py is a new export script which writes the transform hierarchy (by object name) and mesh references for each object (by mesh name).
+- ```export-meshes.py``` now supports exporting various subsets of points, normals, colors, textures, and edge lines (based on export filename).
+- ```export-meshes.py``` now exports just the referenced meshes (by mesh name).
+- ```export-scene.py``` is a new export script which writes the transform hierarchy (by object name) and mesh references for each object (by mesh name).
+- ```Mode.*pp``` defines a base class for a full-screen mode (like a menu or game).
+- ```MenuMode.*pp``` defines
+- ```Load.*pp``` provides helpers for asset loading.
+- ```CratesMode.*pp``` shows how to use the included Scene graph code.
+- many, many more changes.
 
 ## Asset Build Instructions
 
