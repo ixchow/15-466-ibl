@@ -8,7 +8,7 @@
 static GLuint compile_shader(GLenum type, std::string const &source) {
 	GLuint shader = glCreateShader(type);
 	GLchar const *str = source.c_str();
-	GLint length = source.size();
+	GLint length = GLint(source.size());
 	glShaderSource(shader, 1, &str, &length);
 	glCompileShader(shader);
 	GLint compile_status = GL_FALSE;
@@ -19,7 +19,7 @@ static GLuint compile_shader(GLenum type, std::string const &source) {
 		glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &info_log_length);
 		std::vector< GLchar > info_log(info_log_length, 0);
 		GLsizei length = 0;
-		glGetShaderInfoLog(shader, info_log.size(), &length, &info_log[0]);
+		glGetShaderInfoLog(shader, GLint(info_log.size()), &length, &info_log[0]);
 		std::cerr << "Info log: " << std::string(info_log.begin(), info_log.begin() + length);
 		glDeleteShader(shader);
 		throw std::runtime_error("Failed to compile shader.");
@@ -53,7 +53,7 @@ GLuint compile_program(
 		glGetProgramiv(program, GL_INFO_LOG_LENGTH, &info_log_length);
 		std::vector< GLchar > info_log(info_log_length, 0);
 		GLsizei length = 0;
-		glGetProgramInfoLog(program, info_log.size(), &length, &info_log[0]);
+		glGetProgramInfoLog(program, GLint(info_log.size()), &length, &info_log[0]);
 		std::cerr << "Info log: " << std::string(info_log.begin(), info_log.begin() + length);
 		throw std::runtime_error("failed to link program");
 	}

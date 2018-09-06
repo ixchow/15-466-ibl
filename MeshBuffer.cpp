@@ -12,7 +12,7 @@
 #include <cstddef>
 
 MeshBuffer::MeshBuffer(std::string const &filename) {
-	glCreateBuffers(1, &vbo);
+	glGenBuffers(1, &vbo);
 
 	std::ifstream file(filename, std::ios::binary);
 
@@ -32,7 +32,7 @@ MeshBuffer::MeshBuffer(std::string const &filename) {
 		glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(Vertex), data.data(), GL_STATIC_DRAW);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-		total = data.size(); //store total for later checks on index
+		total = GLuint(data.size()); //store total for later checks on index
 
 		//store attrib locations:
 		Position = Attrib(3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, Position));
@@ -52,7 +52,7 @@ MeshBuffer::MeshBuffer(std::string const &filename) {
 		glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(Vertex), data.data(), GL_STATIC_DRAW);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-		total = data.size(); //store total for later checks on index
+		total = GLuint(data.size()); //store total for later checks on index
 
 		//store attrib locations:
 		Position = Attrib(3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, Position));
@@ -74,7 +74,7 @@ MeshBuffer::MeshBuffer(std::string const &filename) {
 		glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(Vertex), data.data(), GL_STATIC_DRAW);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-		total = data.size(); //store total for later checks on index
+		total = GLuint(data.size()); //store total for later checks on index
 
 		//store attrib locations:
 		Position = Attrib(3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, Position));
@@ -98,7 +98,7 @@ MeshBuffer::MeshBuffer(std::string const &filename) {
 		glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(Vertex), data.data(), GL_STATIC_DRAW);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-		total = data.size(); //store total for later checks on index
+		total = GLuint(data.size()); //store total for later checks on index
 
 		//store attrib locations:
 		Position = Attrib(3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, Position));
