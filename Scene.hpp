@@ -63,9 +63,9 @@ struct Scene {
 
 		//program info:
 		GLuint program = 0;
-		GLuint program_mvp = -1U; //uniform index for object-to-clip matrix (mat4)
-		GLuint program_mv = -1U; //uniform index for model-to-lighting-space matrix (mat4x3)
-		GLuint program_itmv = -1U; //uniform index for normal-to-lighting-space matrix (mat3)
+		GLuint program_mvp_mat4 = -1U; //uniform index for object-to-clip matrix (mat4)
+		GLuint program_mv_mat4x3 = -1U; //uniform index for model-to-lighting-space matrix (mat4x3)
+		GLuint program_itmv_mat3 = -1U; //uniform index for normal-to-lighting-space matrix (mat3)
 
 		//material info:
 		std::function< void() > set_uniforms; //will be called before rendering object, use to set material parameters (e.g. glossiness)

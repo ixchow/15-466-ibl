@@ -59,9 +59,11 @@ NAMES =
 	main
 	data_path
 	compile_program
+	vertex_color_program
 	Scene
 	Mode
 	GameMode
+	CratesMode
 	MenuMode
 	Load
 	MeshBuffer

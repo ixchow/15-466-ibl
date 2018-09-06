@@ -179,14 +179,14 @@ void Scene::draw(Scene::Camera const *camera) {
 
 		//set up program uniforms:
 		glUseProgram(object->program);
-		if (object->program_mvp != -1U) {
-			glUniformMatrix4fv(object->program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
+		if (object->program_mvp_mat4 != -1U) {
+			glUniformMatrix4fv(object->program_mvp_mat4, 1, GL_FALSE, glm::value_ptr(mvp));
 		}
-		if (object->program_mv != -1U) {
-			glUniformMatrix4x3fv(object->program_itmv, 1, GL_FALSE, glm::value_ptr(mv));
+		if (object->program_mv_mat4x3 != -1U) {
+			glUniformMatrix4x3fv(object->program_mv_mat4x3, 1, GL_FALSE, glm::value_ptr(mv));
 		}
-		if (object->program_itmv != -1U) {
-			glUniformMatrix3fv(object->program_itmv, 1, GL_FALSE, glm::value_ptr(itmv));
+		if (object->program_itmv_mat3 != -1U) {
+			glUniformMatrix3fv(object->program_itmv_mat3, 1, GL_FALSE, glm::value_ptr(itmv));
 		}
 
 		if (object->set_uniforms) object->set_uniforms();
