@@ -1,10 +1,9 @@
 #include "MenuMode.hpp"
 
-#include "Scene.hpp"
 #include "Load.hpp"
-#include "GLProgram.hpp"
-#include "GLVertexArray.hpp"
+#include "compile_program.hpp"
 #include "MeshBuffer.hpp"
+#include "data_path.hpp"
 
 #include <glm/gtc/type_ptr.hpp>
 #include <cmath>
@@ -12,18 +11,16 @@
 
 //---------- resources ------------
 Load< MeshBuffer > menu_meshes(LoadTagInit, [](){
-	return new MeshBuffer("menu.p");
+	return new MeshBuffer(data_path("menu.p"));
 });
 
-//Attrib locations in menu_program:
-GLint menu_program_Position = -1;
+
 //Uniform locations in menu_program:
 GLint menu_program_mvp = -1;
 GLint menu_program_color = -1;
 
-//Menu program itself:
-Load< GLProgram > menu_program(LoadTagInit, [](){
-	GLProgram *ret = new GLProgram(
+Load< GLuint > menu_program(LoadTagInit, [](){
+	GLuint *ret = new GLuint(compile_program(
 		"#version 330\n"
 		"uniform mat4 mvp;\n"
 		"in vec4 Position;\n"
@@ -37,21 +34,17 @@ Load< GLProgram > menu_program(LoadTagInit, [](){
 		"void main() {\n"
 		"	fragColor = vec4(color, 1.0);\n"
 		"}\n"
-	);
+	));
 
-	menu_program_Position = (*ret)("Position");
-	menu_program_mvp = (*ret)["mvp"];
-	menu_program_color = (*ret)["color"];
+	menu_program_mvp = glGetUniformLocation(*ret, "mvp");
+	menu_program_color = glGetUniformLocation(*ret, "color");
 
 	return ret;
 });
 
 //Binding for using menu_program on menu_meshes:
-Load< GLVertexArray > menu_binding(LoadTagDefault, [](){
-	GLVertexArray *ret = new GLVertexArray(GLVertexArray::make_binding(menu_program->program, {
-		{menu_program_Position, menu_meshes->Position},
-	}));
-	return ret;
+Load< GLuint > menu_binding(LoadTagDefault, [](){
+	return new GLuint(menu_meshes->make_vao_for_program(*menu_program));
 });
 
 //----------------------
@@ -108,8 +101,8 @@ void MenuMode::draw(glm::uvec2 const &drawable_size) {
 		total_height += choice.height + 2.0f * choice.padding;
 	}
 
-	glUseProgram(menu_program->program);
-	glBindVertexArray(menu_binding->array);
+	glUseProgram(*menu_program);
+	glBindVertexArray(*menu_binding);
 
 	//character width and spacing helpers:
 	// (...in terms of the menu font's default 3-unit height)

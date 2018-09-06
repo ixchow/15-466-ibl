@@ -59,9 +59,10 @@ NAMES =
 	main
 	data_path
 	compile_program
-	Game
 	Scene
 	Mode
+	Game
+	MenuMode
 	Load
 	MeshBuffer
 	;

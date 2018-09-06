@@ -11,10 +11,13 @@ endif
 DIST=../dist
 
 all : \
+	$(DIST)/menu.p \
 	$(DIST)/meshes.pnc \
 	$(DIST)/crates.pnc \
 	$(DIST)/crates.scene \
 
+$(DIST)/%.p : %.blend export-meshes.py
+	$(BLENDER) --background --python export-meshes.py -- '$<' '$@'
 
 $(DIST)/%.pnc : %.blend export-meshes.py
 	$(BLENDER) --background --python export-meshes.py -- '$<' '$@'
