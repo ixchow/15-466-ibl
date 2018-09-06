@@ -1,11 +1,13 @@
-#include "Game.hpp"
+#include "GameMode.hpp"
 
+#include "MenuMode.hpp"
 #include "Load.hpp"
 #include "MeshBuffer.hpp"
 #include "gl_errors.hpp" //helper for dumpping OpenGL error messages
 #include "read_chunk.hpp" //helper for reading a vector of structures from a file
 #include "data_path.hpp" //helper to get paths relative to executable
 #include "compile_program.hpp" //helper to compile opengl shader programs
+#include "draw_text.hpp" //helper to... um.. draw text
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -112,7 +114,7 @@ Load< GLuint > meshes_for_vertex_color_program(LoadTagDefault, [](){
 });
 
 
-Game::Game() {
+GameMode::GameMode() {
 	//----------------
 	//set up game board with meshes and rolls:
 	board_meshes.reserve(board_size.x * board_size.y);
@@ -127,10 +129,10 @@ Game::Game() {
 	}
 }
 
-Game::~Game() {
+GameMode::~GameMode() {
 }
 
-bool Game::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size) {
+bool GameMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size) {
 	//ignore any keys that are the result of automatic key repeat:
 	if (evt.type == SDL_KEYDOWN && evt.key.repeat) {
 		return false;
@@ -173,12 +175,17 @@ bool Game::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size) {
 				cursor.y -= 1;
 			}
 			return true;
+		} else if (evt.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+			//open pause menu on 'ESCAPE':
+			show_pause_menu();
+			return true;
 		}
 	}
+
 	return false;
 }
 
-void Game::update(float elapsed) {
+void GameMode::update(float elapsed) {
 	//if the roll keys are pressed, rotate everything on the same row or column as the cursor:
 	glm::quat dr = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
 	float amt = elapsed * 1.0f;
@@ -208,7 +215,13 @@ void Game::update(float elapsed) {
 	}
 }
 
-void Game::draw(glm::uvec2 const &drawable_size) {
+void GameMode::draw(glm::uvec2 const &drawable_size) {
+	//set up basic OpenGL state:
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_BLEND);
+	glBlendEquation(GL_FUNC_ADD);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 	//Set up a transformation matrix to fit the board in the window:
 	glm::mat4 world_to_clip;
 	{
@@ -291,8 +304,36 @@ void Game::draw(glm::uvec2 const &drawable_size) {
 		)
 	);
 
+	if (Mode::current.get() == this) {
+		glDisable(GL_DEPTH_TEST);
+		std::string message = "PRESS ESC FOR MENU";
+		float height = 0.06f;
+		float width = text_width(message, height);
+		draw_text(message, glm::vec2(-0.5f * width,-0.99f), height, glm::vec4(0.0f, 0.0f, 0.0f, 0.5f));
+		draw_text(message, glm::vec2(-0.5f * width,-1.0f), height, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
 
-	glUseProgram(0);
+		glUseProgram(0);
+	}
 
 	GL_ERRORS();
+}
+
+
+void GameMode::show_pause_menu() {
+	std::shared_ptr< MenuMode > menu = std::make_shared< MenuMode >();
+
+	std::shared_ptr< Mode > game = shared_from_this();
+	menu->background = game;
+
+	menu->choices.emplace_back("PAUSED");
+	menu->choices.emplace_back("RESUME", [game](){
+		Mode::set_current(game);
+	});
+	menu->choices.emplace_back("QUIT", [](){
+		Mode::set_current(nullptr);
+	});
+
+	menu->selected = 1;
+
+	Mode::set_current(menu);
 }

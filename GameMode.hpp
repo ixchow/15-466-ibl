@@ -11,11 +11,11 @@
 
 #include <vector>
 
-// The 'Game' mode is the main gameplay mode:
+// The 'GameMode' mode is the main gameplay mode:
 
-struct Game : public Mode {
-	Game();
-	virtual ~Game();
+struct GameMode : public Mode {
+	GameMode();
+	virtual ~GameMode();
 
 	//handle_event is called when new mouse or keyboard events are received:
 	// (note that this might be many times per frame or never)
@@ -27,6 +27,9 @@ struct Game : public Mode {
 
 	//draw is called after update:
 	virtual void draw(glm::uvec2 const &drawable_size) override;
+
+	//starts up a 'quit/resume' pause menu:
+	void show_pause_menu();
 
 	//------- game state -------
 

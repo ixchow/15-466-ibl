@@ -14,9 +14,9 @@ struct MenuMode : public Mode {
 	virtual void draw(glm::uvec2 const &drawable_size) override;
 
 	struct Choice {
-		Choice(std::string const &label_, std::function< void(Choice &) > on_select_ = nullptr) : label(label_), on_select(on_select_) { }
+		Choice(std::string const &label_, std::function< void() > on_select_ = nullptr) : label(label_), on_select(on_select_) { }
 		std::string label;
-		std::function< void(Choice &) > on_select;
+		std::function< void() > on_select;
 		//height / padding give item height and padding relative to a screen of height 2:
 		float height = 0.1f;
 		float padding = 0.01f;
@@ -24,4 +24,9 @@ struct MenuMode : public Mode {
 	std::vector< Choice > choices;
 	uint32_t selected = 0;
 	float bounce = 0.0f;
+
+	//will render this mode in the background if not null:
+	std::shared_ptr< Mode > background;
+	float background_time_scale = 1.0f;
+	float background_fade = 0.5f;
 };

@@ -47,6 +47,29 @@ Load< GLuint > menu_binding(LoadTagDefault, [](){
 	return new GLuint(menu_meshes->make_vao_for_program(*menu_program));
 });
 
+GLint fade_program_color = -1;
+
+Load< GLuint > fade_program(LoadTagInit, [](){
+	GLuint *ret = new GLuint(compile_program(
+		"#version 330\n"
+		"void main() {\n"
+		"	gl_Position = vec4(4 * (gl_VertexID & 1) - 1,  2 * (gl_VertexID & 2) - 1, 0.0, 1.0);\n"
+		"}\n"
+	,
+		"#version 330\n"
+		"uniform vec4 color;\n"
+		"out vec4 fragColor;\n"
+		"void main() {\n"
+		"	fragColor = color;\n"
+		"}\n"
+	));
+
+	fade_program_color = glGetUniformLocation(*ret, "color");
+
+	return ret;
+});
+
+
 //----------------------
 
 bool MenuMode::handle_event(SDL_Event const &e, glm::uvec2 const &window_size) {
@@ -72,7 +95,7 @@ bool MenuMode::handle_event(SDL_Event const &e, glm::uvec2 const &window_size) {
 			return true;
 		} else if (e.key.keysym.sym == SDLK_RETURN || e.key.keysym.sym == SDLK_SPACE) {
 			if (selected < choices.size() && choices[selected].on_select) {
-				choices[selected].on_select(choices[selected]);
+				choices[selected].on_select();
 			}
 			return true;
 		}
@@ -83,9 +106,30 @@ bool MenuMode::handle_event(SDL_Event const &e, glm::uvec2 const &window_size) {
 void MenuMode::update(float elapsed) {
 	bounce += elapsed / 0.7f;
 	bounce -= std::floor(bounce);
+
+	if (background) {
+		background->update(elapsed * background_time_scale);
+	}
 }
 
 void MenuMode::draw(glm::uvec2 const &drawable_size) {
+	if (background && background_fade < 1.0f) {
+		background->draw(drawable_size);
+
+		glDisable(GL_DEPTH_TEST);
+		if (background_fade > 0.0f) {
+			glEnable(GL_BLEND);
+			glBlendEquation(GL_FUNC_ADD);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			glUseProgram(*fade_program);
+			glUniform4fv(fade_program_color, 1, glm::value_ptr(glm::vec4(0.0f, 0.0f, 0.0f, background_fade)));
+			glDrawArrays(GL_TRIANGLES, 0, 3);
+			glUseProgram(0);
+			glDisable(GL_BLEND);
+		}
+	}
+	glDisable(GL_DEPTH_TEST);
+
 	float aspect = drawable_size.x / float(drawable_size.y);
 	//scale factors such that a rectangle of aspect 'aspect' and height '1.0' fills the window:
 	glm::vec2 scale = glm::vec2(1.0f / aspect, 1.0f);
@@ -167,4 +211,5 @@ void MenuMode::draw(glm::uvec2 const &drawable_size) {
 		y -= choice.padding;
 	}
 
+	glEnable(GL_DEPTH_TEST);
 }

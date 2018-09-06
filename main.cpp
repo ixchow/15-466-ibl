@@ -4,8 +4,8 @@
 //Load.hpp is included because of the call_load_functions() call:
 #include "Load.hpp"
 
-//The 'Game' mode plays the game:
-#include "Game.hpp"
+//The 'GameMode' mode plays the game:
+#include "GameMode.hpp"
 
 //GL.hpp will include a non-namespace-polluting set of opengl prototypes:
 #include "GL.hpp"
@@ -99,11 +99,9 @@ int main(int argc, char **argv) {
 
 	call_load_functions();
 
-	//------------ create game object --------------
+	//------------ create game mode + make current --------------
 
-	std::shared_ptr< Game > game = std::make_shared< Game >();
-
-	Mode::set_current(game);
+	Mode::set_current(std::make_shared< GameMode >());
 
 	//------------ main loop ------------
 
@@ -123,8 +121,8 @@ int main(int argc, char **argv) {
 	};
 	on_resize();
 
-	//This will loop until the game object is set to null:
-	while (game) {
+	//This will loop until the current mode is set to null:
+	while (Mode::current) {
 		//every pass through the game loop creates one frame of output
 		//  by performing three steps:
 
@@ -136,17 +134,17 @@ int main(int argc, char **argv) {
 					on_resize();
 				}
 				//handle input:
-				if (game && game->handle_event(evt, window_size)) {
+				if (Mode::current && Mode::current->handle_event(evt, window_size)) {
 					// mode handled it; great
 				} else if (evt.type == SDL_QUIT) {
-					game.reset(); //done: deallocate game
+					Mode::set_current(nullptr);
 					break;
 				}
 			}
-			if (!game) break;
+			if (!Mode::current) break;
 		}
 
-		{ //(2) call the game's "update" function to deal with elapsed time:
+		{ //(2) call the current mode's "update" function to deal with elapsed time:
 			auto current_time = std::chrono::high_resolution_clock::now();
 			static auto previous_time = current_time;
 			float elapsed = std::chrono::duration< float >(current_time - previous_time).count();
@@ -156,11 +154,11 @@ int main(int argc, char **argv) {
 			//lag to avoid spiral of death:
 			elapsed = std::min(0.1f, elapsed);
 
-			game->update(elapsed);
-			if (!game) break;
+			Mode::current->update(elapsed);
+			if (!Mode::current) break;
 		}
 
-		{ //(3) call the game's "draw" function to produce output:
+		{ //(3) call the current mode's "draw" function to produce output:
 			//clear the depth+color buffers and set some default state:
 			glClearColor(0.5, 0.5, 0.5, 0.0);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -168,7 +166,7 @@ int main(int argc, char **argv) {
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-			game->draw(drawable_size);
+			Mode::current->draw(drawable_size);
 		}
 
 		//Finally, wait until the recently-drawn frame is shown before doing it all again:

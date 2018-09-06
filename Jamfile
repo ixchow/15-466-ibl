@@ -61,10 +61,11 @@ NAMES =
 	compile_program
 	Scene
 	Mode
-	Game
+	GameMode
 	MenuMode
 	Load
 	MeshBuffer
+	draw_text
 	;
 
 if $(OS) = NT {
