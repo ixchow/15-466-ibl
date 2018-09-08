@@ -7,6 +7,9 @@
 //The 'GameMode' mode plays the game:
 #include "GameMode.hpp"
 
+//The 'Sound' header has functions for managing sound:
+#include "Sound.hpp"
+
 //GL.hpp will include a non-namespace-polluting set of opengl prototypes:
 #include "GL.hpp"
 
@@ -92,6 +95,9 @@ int main(int argc, char **argv) {
 
 	//Hide mouse cursor (note: showing can be useful for debugging):
 	//SDL_ShowCursor(SDL_DISABLE);
+
+	//------------ init sound output --------------
+	Sound::init();
 
 	//------------ load assets --------------
 

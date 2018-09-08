@@ -68,6 +68,7 @@ NAMES =
 	Load
 	MeshBuffer
 	draw_text
+	Sound
 	;
 
 if $(OS) = NT {

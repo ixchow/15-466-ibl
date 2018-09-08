@@ -5,6 +5,7 @@
 #include "MeshBuffer.hpp"
 #include "GL.hpp"
 #include "Scene.hpp"
+#include "Sound.hpp"
 
 #include <SDL.h>
 #include <glm/glm.hpp>
@@ -43,4 +44,13 @@ struct CratesMode : public Mode {
 
 	Scene scene;
 	Scene::Camera *camera = nullptr;
+
+	Scene::Object *large_crate = nullptr;
+	Scene::Object *small_crate = nullptr;
+
+	//when this reaches zero, the 'dot' sample is triggered at the small crate:
+	float dot_countdown = 1.0f;
+
+	//this 'loop' sample is played at the large crate:
+	std::shared_ptr< Sound::PlayingSample > loop;
 };
