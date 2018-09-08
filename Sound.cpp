@@ -201,16 +201,11 @@ SDL_AudioDeviceID device = 0;
 //------------------
 
 Sample::Sample(std::string const &filename) {
-	SDL_AudioSpec want;
-	SDL_zero(want);
-	want.freq = AudioRate;
-	want.format = AUDIO_F32SYS;
-	want.channels = 1;
-
+	SDL_AudioSpec audio_spec;
 	Uint8 *audio_buf = nullptr;
 	Uint32 audio_len = 0;
 
-	SDL_AudioSpec *have = SDL_LoadWAV(filename.c_str(), &want, &audio_buf, &audio_len);
+	SDL_AudioSpec *have = SDL_LoadWAV(filename.c_str(), &audio_spec, &audio_buf, &audio_len);
 	if (!have) {
 		throw std::runtime_error("Failed to load WAV file '" + filename + "'; SDL says \"" + std::string(SDL_GetError()) + "\"");
 	}
