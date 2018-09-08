@@ -2,8 +2,10 @@
 
 #include <SDL.h>
 
+#include <algorithm>
 #include <iostream>
 #include <list>
+#include <string>
 
 namespace Sound {
 
