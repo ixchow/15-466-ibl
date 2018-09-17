@@ -3,6 +3,7 @@
 #include "MenuMode.hpp"
 #include "Load.hpp"
 #include "MeshBuffer.hpp"
+#include "Scene.hpp"
 #include "gl_errors.hpp" //helper for dumpping OpenGL error messages
 #include "read_chunk.hpp" //helper for reading a vector of structures from a file
 #include "data_path.hpp" //helper to get paths relative to executable
@@ -19,24 +20,60 @@
 #include <random>
 
 
-MeshBuffer::Mesh paddle_mesh;
-MeshBuffer::Mesh ball_mesh;
-MeshBuffer::Mesh frame_mesh;
-
 Load< MeshBuffer > meshes(LoadTagDefault, [](){
-	MeshBuffer const *ret = new MeshBuffer(data_path("paddle-ball.pnc"));
-
-	paddle_mesh = ret->lookup("Paddle");
-	ball_mesh = ret->lookup("Ball");
-	frame_mesh = ret->lookup("Frame");
-
-	return ret;
+	return new MeshBuffer(data_path("paddle-ball.pnc"));
 });
 
 Load< GLuint > meshes_for_vertex_color_program(LoadTagDefault, [](){
 	return new GLuint(meshes->make_vao_for_program(vertex_color_program->program));
 });
 
+Scene::Transform *paddle_transform = nullptr;
+Scene::Transform *ball_transform = nullptr;
+
+Scene::Camera *camera = nullptr;
+
+Load< Scene > scene(LoadTagDefault, [](){
+	Scene *ret = new Scene;
+	//load transform hierarchy:
+	ret->load(data_path("paddle-ball.scene"), [](Scene &s, Scene::Transform *t, std::string const &m){
+		Scene::Object *obj = s.new_object(t);
+
+		obj->program = vertex_color_program->program;
+		obj->program_mvp_mat4  = vertex_color_program->object_to_clip_mat4;
+		obj->program_mv_mat4x3 = vertex_color_program->object_to_light_mat4x3;
+		obj->program_itmv_mat3 = vertex_color_program->normal_to_light_mat3;
+
+		MeshBuffer::Mesh const &mesh = meshes->lookup(m);
+		obj->vao = *meshes_for_vertex_color_program;
+		obj->start = mesh.start;
+		obj->count = mesh.count;
+	});
+
+	//look up paddle and ball transforms:
+	for (Scene::Transform *t = ret->first_transform; t != nullptr; t = t->alloc_next) {
+		if (t->name == "Paddle") {
+			if (paddle_transform) throw std::runtime_error("Multiple 'Paddle' transforms in scene.");
+			paddle_transform = t;
+		}
+		if (t->name == "Ball") {
+			if (ball_transform) throw std::runtime_error("Multiple 'Ball' transforms in scene.");
+			ball_transform = t;
+		}
+	}
+	if (!paddle_transform) throw std::runtime_error("No 'Paddle' transform in scene.");
+	if (!ball_transform) throw std::runtime_error("No 'Ball' transform in scene.");
+
+	//look up the camera:
+	for (Scene::Camera *c = ret->first_camera; c != nullptr; c = c->alloc_next) {
+		if (c->transform->name == "Camera") {
+			if (camera) throw std::runtime_error("Multiple 'Camera' objects in scene.");
+			camera = c;
+		}
+	}
+	if (!camera) throw std::runtime_error("No 'Camera' camera in scene.");
+	return ret;
+});
 
 GameMode::GameMode(Client &client_) : client(client_) {
 	client.connection.send_raw("h", 1); //send a 'hello' to the server
@@ -79,11 +116,19 @@ void GameMode::update(float elapsed) {
 			c->recv_buffer.clear();
 		}
 	});
+
+	//copy game state to scene positions:
+	ball_transform->position.x = state.ball.x;
+	ball_transform->position.y = state.ball.y;
+
+	paddle_transform->position.x = state.paddle.x;
+	paddle_transform->position.y = state.paddle.y;
 }
 
 void GameMode::draw(glm::uvec2 const &drawable_size) {
-	glClearColor(0.25f, 0.0f, 0.5f, 0.0f);
+	camera->aspect = drawable_size.x / float(drawable_size.y);
 
+	glClearColor(0.25f, 0.0f, 0.5f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	//set up basic OpenGL state:
@@ -92,31 +137,7 @@ void GameMode::draw(glm::uvec2 const &drawable_size) {
 	glBlendEquation(GL_FUNC_ADD);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	//Set up a transformation matrix to fit the board in the window:
-	glm::mat4 world_to_clip;
-	{
-		float aspect = float(drawable_size.x) / float(drawable_size.y);
-
-		//want scale such that board * scale fits in [-aspect,aspect]x[-1.0,1.0] screen box:
-		float scale = glm::min(
-			2.0f * aspect / float(Game::FrameWidth + 1.0f),
-			2.0f / float(Game::FrameHeight + 1.0f)
-		);
-
-		//center of board will be placed at center of screen:
-		glm::vec2 center = glm::vec2(0.0f);
-
-		//NOTE: glm matrices are specified in column-major order
-		world_to_clip = glm::mat4(
-			scale / aspect, 0.0f, 0.0f, 0.0f,
-			0.0f, scale, 0.0f, 0.0f,
-			0.0f, 0.0f,-0.1f, 0.0f,
-			-(scale / aspect) * center.x, -scale * center.y, 0.0f, 1.0f
-		);
-	}
-
-	//set up graphics pipeline to use data from the meshes and the simple shading program:
-	glBindVertexArray(*meshes_for_vertex_color_program);
+	//set up light positions:
 	glUseProgram(vertex_color_program->program);
 
 	glUniform3fv(vertex_color_program->sun_color_vec3, 1, glm::value_ptr(glm::vec3(0.81f, 0.81f, 0.76f)));
@@ -124,52 +145,7 @@ void GameMode::draw(glm::uvec2 const &drawable_size) {
 	glUniform3fv(vertex_color_program->sky_color_vec3, 1, glm::value_ptr(glm::vec3(0.2f, 0.2f, 0.3f)));
 	glUniform3fv(vertex_color_program->sky_direction_vec3, 1, glm::value_ptr(glm::vec3(0.0f, 1.0f, 0.0f)));
 
-	//helper function to draw a given mesh with a given transformation:
-	auto draw_mesh = [&](MeshBuffer::Mesh const &mesh, glm::mat4 const &object_to_world) {
-		//set up the matrix uniforms:
-		if (vertex_color_program->object_to_clip_mat4 != -1U) {
-			glm::mat4 object_to_clip = world_to_clip * object_to_world;
-			glUniformMatrix4fv(vertex_color_program->object_to_clip_mat4, 1, GL_FALSE, glm::value_ptr(object_to_clip));
-		}
-		if (vertex_color_program->object_to_light_mat4x3 != -1U) {
-			glUniformMatrix4x3fv(vertex_color_program->object_to_light_mat4x3, 1, GL_FALSE, glm::value_ptr(object_to_world));
-		}
-		if (vertex_color_program->normal_to_light_mat3 != -1U) {
-			//NOTE: if there isn't any non-uniform scaling in the object_to_world matrix, then the inverse transpose is the matrix itself, and computing it wastes some CPU time:
-			glm::mat3 normal_to_world = glm::inverse(glm::transpose(glm::mat3(object_to_world)));
-			glUniformMatrix3fv(vertex_color_program->normal_to_light_mat3, 1, GL_FALSE, glm::value_ptr(normal_to_world));
-		}
-
-		//draw the mesh:
-		glDrawArrays(GL_TRIANGLES, mesh.start, mesh.count);
-	};
-
-	draw_mesh(frame_mesh,
-		glm::mat4(
-			1.0f, 0.0f, 0.0f, 0.0f,
-			0.0f, 1.0f, 0.0f, 0.0f,
-			0.0f, 0.0f, 1.0f, 0.0f,
-			0.0f, 0.0f, 0.0f, 1.0f
-		)
-	);
-
-	draw_mesh(ball_mesh,
-		glm::mat4(
-			1.0f, 0.0f, 0.0f, 0.0f,
-			0.0f, 1.0f, 0.0f, 0.0f,
-			0.0f, 0.0f, 1.0f, 0.0f,
-			state.ball.x, state.ball.y, 0.0f, 1.0f
-		)
-	);
-
-	draw_mesh(paddle_mesh,
-		glm::mat4(
-			1.0f, 0.0f, 0.0f, 0.0f,
-			0.0f, 1.0f, 0.0f, 0.0f,
-			0.0f, 0.0f, 1.0f, 0.0f,
-			state.paddle.x, state.paddle.y, 0.0f, 1.0f
-		)
-	);
+	scene->draw(camera);
 
 	GL_ERRORS();
 }

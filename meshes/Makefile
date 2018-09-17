@@ -15,6 +15,8 @@ DIST=../dist
 all : \
 	$(DIST)/menu.p \
 	$(DIST)/paddle-ball.pnc \
+	$(DIST)/paddle-ball.scene \
+
 
 $(DIST)/%.p : %.blend export-meshes.py
 	$(BLENDER) --background --python export-meshes.py -- '$<' '$@'

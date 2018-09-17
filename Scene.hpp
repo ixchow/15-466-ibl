@@ -136,7 +136,7 @@ struct Scene {
 
 	~Scene(); //destructor deallocates transforms, objects, cameras
 
-	//create transforms from a scene file:
+	//add transforms/objects/cameras from a scene file:
 	// the 'on_object' callback gives you a chance to look up a mesh by name and make an object.
 	void load(std::string const &filename,
 		std::function< void(Scene &, Transform *, std::string const &) > const &on_object = nullptr

@@ -214,7 +214,7 @@ Scene::~Scene() {
 }
 
 void Scene::load(std::string const &filename,
-	std::function< void(Scene &, Transform *, std::string const &) > const &on_object ) {
+	std::function< void(Scene &, Transform *, std::string const &) > const &on_object) {
 
 	std::ifstream file(filename, std::ios::binary);
 
@@ -246,8 +246,9 @@ void Scene::load(std::string const &filename,
 		uint32_t transform;
 		char type[4]; //"pers" or "orth"
 		float data; //fov in degrees for 'pers', scale for 'orth'
+		float near, far;
 	};
-	static_assert(sizeof(CameraEntry) == 4 + 4 + 4, "CameraEntry is packed.");
+	static_assert(sizeof(CameraEntry) == 4 + 4 + 4 + 4 + 4, "CameraEntry is packed.");
 	std::vector< CameraEntry > cameras;
 	read_chunk(file, "cam0", &cameras);
 
@@ -309,7 +310,20 @@ void Scene::load(std::string const &filename,
 			on_object(*this, hierarchy_transforms[m.transform], name);
 		}
 
+	}
 
+	for (auto const &c : cameras) {
+		if (c.transform >= hierarchy_transforms.size()) {
+			throw std::runtime_error("scene file '" + filename + "' contains camera entry with invalid transform index (" + std::to_string(c.transform) + ")");
+		}
+		if (std::string(c.type, 4) != "pers") {
+			std::cout << "Ignoring non-perspective camera (" + std::string(c.type, 4) + ") stored in file." << std::endl;
+			continue;
+		}
+		Camera *camera = new_camera(hierarchy_transforms[c.transform]);
+		camera->fovy = c.data / 180.0f * 3.1415926f; //FOV is stored in degrees; convert to radians.
+		camera->near = c.near;
+		//N.b. far plane is ignored because cameras use infinite perspective matrices.
 	}
 
 }
