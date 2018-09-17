@@ -246,7 +246,7 @@ void Scene::load(std::string const &filename,
 		uint32_t transform;
 		char type[4]; //"pers" or "orth"
 		float data; //fov in degrees for 'pers', scale for 'orth'
-		float near, far;
+		float clip_near, clip_far;
 	};
 	static_assert(sizeof(CameraEntry) == 4 + 4 + 4 + 4 + 4, "CameraEntry is packed.");
 	std::vector< CameraEntry > cameras;
@@ -322,7 +322,7 @@ void Scene::load(std::string const &filename,
 		}
 		Camera *camera = new_camera(hierarchy_transforms[c.transform]);
 		camera->fovy = c.data / 180.0f * 3.1415926f; //FOV is stored in degrees; convert to radians.
-		camera->near = c.near;
+		camera->near = c.clip_near;
 		//N.b. far plane is ignored because cameras use infinite perspective matrices.
 	}
 
