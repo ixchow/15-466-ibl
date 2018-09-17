@@ -55,7 +55,17 @@ if $(OS) = NT { #Windows
 #This is the part of the file that tells Jam how to build your project.
 
 #Store the names of all the .cpp files to build into a variable:
-NAMES =
+SERVER_NAMES =
+	server
+	;
+
+COMMON_NAMES =
+	Connection
+	Game
+	;
+
+CLIENT_NAMES =
+	load_save_png
 	main
 	data_path
 	compile_program
@@ -63,7 +73,6 @@ NAMES =
 	Scene
 	Mode
 	GameMode
-	CratesMode
 	MenuMode
 	Load
 	MeshBuffer
@@ -73,11 +82,12 @@ NAMES =
 
 if $(OS) = NT {
 	#On windows, an additional 'gl_shims' file is needed:
-	NAMES += gl_shims ;
+	CLIENT_NAMES += gl_shims ;
 }
 
 LOCATE_TARGET = objs ; #put objects in 'objs' directory
-Objects $(NAMES:S=.cpp) ;
+Objects $(CLIENT_NAMES:S=.cpp) $(SERVER_NAMES:S=.cpp) $(COMMON_NAMES:S=.cpp) ;
 
 LOCATE_TARGET = dist ; #put main in 'dist' directory
-MainFromObjects main : $(NAMES:S=$(SUFOBJ)) ;
+MainFromObjects client : $(CLIENT_NAMES:S=$(SUFOBJ)) $(COMMON_NAMES:S=$(SUFOBJ)) ;
+MainFromObjects server : $(SERVER_NAMES:S=$(SUFOBJ)) $(COMMON_NAMES:S=$(SUFOBJ)) ;

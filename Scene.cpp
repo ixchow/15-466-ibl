@@ -1,9 +1,11 @@
 #include "Scene.hpp"
+#include "read_chunk.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #include <iostream>
+#include <fstream>
 
 glm::mat4 Scene::Transform::make_local_to_parent() const {
 	return glm::mat4( //translate
@@ -159,7 +161,7 @@ void Scene::delete_camera(Scene::Camera *object) {
 	list_delete< Scene::Camera >(object);
 }
 
-void Scene::draw(Scene::Camera const *camera) {
+void Scene::draw(Scene::Camera const *camera) const {
 	assert(camera && "Must have a camera to draw scene from.");
 
 	glm::mat4 world_to_camera = camera->transform->make_world_to_local();
@@ -209,4 +211,105 @@ Scene::~Scene() {
 	while (first_transform) {
 		delete_transform(first_transform);
 	}
+}
+
+void Scene::load(std::string const &filename,
+	std::function< void(Scene &, Transform *, std::string const &) > const &on_object ) {
+
+	std::ifstream file(filename, std::ios::binary);
+
+	std::vector< char > names;
+	read_chunk(file, "str0", &names);
+
+	struct HierarchyEntry {
+		uint32_t parent;
+		uint32_t name_begin;
+		uint32_t name_end;
+		glm::vec3 position;
+		glm::quat rotation;
+		glm::vec3 scale;
+	};
+	static_assert(sizeof(HierarchyEntry) == 4 + 4 + 4 + 4*3 + 4*4 + 4*3, "HierarchyEntry is packed.");
+	std::vector< HierarchyEntry > hierarchy;
+	read_chunk(file, "xfh0", &hierarchy);
+
+	struct MeshEntry {
+		uint32_t transform;
+		uint32_t name_begin;
+		uint32_t name_end;
+	};
+	static_assert(sizeof(MeshEntry) == 4 + 4 + 4, "MeshEntry is packed.");
+	std::vector< MeshEntry > meshes;
+	read_chunk(file, "msh0", &meshes);
+
+	struct CameraEntry {
+		uint32_t transform;
+		char type[4]; //"pers" or "orth"
+		float data; //fov in degrees for 'pers', scale for 'orth'
+	};
+	static_assert(sizeof(CameraEntry) == 4 + 4 + 4, "CameraEntry is packed.");
+	std::vector< CameraEntry > cameras;
+	read_chunk(file, "cam0", &cameras);
+
+	struct LightEntry {
+		uint32_t transform;
+		char type;
+		glm::u8vec3 color;
+		float energy;
+		float distance;
+		float fov;
+	};
+	static_assert(sizeof(LightEntry) == 4 + 1 + 3 + 4 + 4 + 4, "LightEntry is packed.");
+	std::vector< LightEntry > lights;
+	read_chunk(file, "lmp0", &lights);
+
+	if (file.peek() != EOF) {
+		std::cerr << "WARNING: trailing data in scene file '" << filename << "'" << std::endl;
+	}
+
+	//--------------------------------
+	//Now that file is loaded, create transforms for hierarchy entries:
+
+	std::vector< Transform * > hierarchy_transforms;
+	hierarchy_transforms.reserve(hierarchy.size());
+
+	for (auto const &h : hierarchy) {
+		Transform *t = new_transform();
+		if (h.parent != -1U) {
+			if (h.parent >= hierarchy_transforms.size()) {
+				throw std::runtime_error("scene file '" + filename + "' did not contain transforms in topological-sort order.");
+			}
+			t->set_parent(hierarchy_transforms[h.parent]);
+		}
+
+		if (h.name_begin <= h.name_end && h.name_end <= names.size()) {
+			t->name = std::string(names.begin() + h.name_begin, names.begin() + h.name_end);
+		} else {
+				throw std::runtime_error("scene file '" + filename + "' contains hierarchy entry with invalid name indices");
+		}
+
+		t->position = h.position;
+		t->rotation = h.rotation;
+		t->scale = h.scale;
+
+		hierarchy_transforms.emplace_back(t);
+	}
+	assert(hierarchy_transforms.size() == hierarchy.size());
+
+	for (auto const &m : meshes) {
+		if (m.transform >= hierarchy_transforms.size()) {
+			throw std::runtime_error("scene file '" + filename + "' contains mesh entry with invalid transform index (" + std::to_string(m.transform) + ")");
+		}
+		if (!(m.name_begin <= m.name_end && m.name_end <= names.size())) {
+			throw std::runtime_error("scene file '" + filename + "' contains mesh entry with invalid name indices");
+		}
+		std::string name = std::string(names.begin() + m.name_begin, names.begin() + m.name_end);
+
+		if (on_object) {
+			on_object(*this, hierarchy_transforms[m.transform], name);
+		}
+
+
+	}
+
 }

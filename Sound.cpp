@@ -177,6 +177,7 @@ void mix_audio(void *, Uint8 *stream, int len) {
 		if (source.i >= source.data.size() //non-looping sample has finished
 		 || (source.stopped && source.volume.ramp == 0.0f) //sample has finished stopping
 		 ) {
+		 	source.stopped = true;
 			auto old = si;
 			++si;
 			playing_samples.erase(old);

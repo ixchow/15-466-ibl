@@ -8,11 +8,15 @@
 #include <vector>
 #include <list>
 #include <functional>
+#include <string>
 
 //"Scene" manages a hierarchy of transformations with, potentially, attached information.
 struct Scene {
 
 	struct Transform {
+		//useful to know sometimes:
+		std::string name;
+
 		//simple specification:
 		glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f);
 		glm::quat rotation = glm::quat(0.0f, 0.0f, 0.0f, 1.0f);
@@ -128,8 +132,13 @@ struct Scene {
 
 	//Draw the scene from a given camera by computing appropriate matrices and sending all objects to OpenGL:
 	//"camera" must be non-null!
-	void draw(Camera const *camera);
-
+	void draw(Camera const *camera) const;
 
 	~Scene(); //destructor deallocates transforms, objects, cameras
+
+	//create transforms from a scene file:
+	// the 'on_object' callback gives you a chance to look up a mesh by name and make an object.
+	void load(std::string const &filename,
+		std::function< void(Scene &, Transform *, std::string const &) > const &on_object = nullptr
+	);
 };

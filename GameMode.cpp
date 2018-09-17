@@ -1,5 +1,4 @@
 #include "GameMode.hpp"
-#include "CratesMode.hpp"
 
 #include "MenuMode.hpp"
 #include "Load.hpp"
@@ -20,20 +19,16 @@
 #include <random>
 
 
-MeshBuffer::Mesh tile_mesh;
-MeshBuffer::Mesh cursor_mesh;
-MeshBuffer::Mesh doll_mesh;
-MeshBuffer::Mesh egg_mesh;
-MeshBuffer::Mesh cube_mesh;
+MeshBuffer::Mesh paddle_mesh;
+MeshBuffer::Mesh ball_mesh;
+MeshBuffer::Mesh frame_mesh;
 
 Load< MeshBuffer > meshes(LoadTagDefault, [](){
-	MeshBuffer const *ret = new MeshBuffer(data_path("meshes.pnc"));
+	MeshBuffer const *ret = new MeshBuffer(data_path("paddle-ball.pnc"));
 
-	tile_mesh = ret->lookup("Tile");
-	cursor_mesh = ret->lookup("Cursor");
-	doll_mesh = ret->lookup("Doll");
-	egg_mesh = ret->lookup("Egg");
-	cube_mesh = ret->lookup("Cube");
+	paddle_mesh = ret->lookup("Paddle");
+	ball_mesh = ret->lookup("Ball");
+	frame_mesh = ret->lookup("Frame");
 
 	return ret;
 });
@@ -43,19 +38,8 @@ Load< GLuint > meshes_for_vertex_color_program(LoadTagDefault, [](){
 });
 
 
-GameMode::GameMode() {
-	//----------------
-	//set up game board with meshes and rolls:
-	board_meshes.reserve(board_size.x * board_size.y);
-	board_rotations.reserve(board_size.x * board_size.y);
-	std::mt19937 mt(0xbead1234);
-
-	std::vector< MeshBuffer::Mesh const * > meshes{ &doll_mesh, &egg_mesh, &cube_mesh };
-
-	for (uint32_t i = 0; i < board_size.x * board_size.y; ++i) {
-		board_meshes.emplace_back(meshes[mt()%meshes.size()]);
-		board_rotations.emplace_back(glm::quat());
-	}
+GameMode::GameMode(Client &client_) : client(client_) {
+	client.connection.send_raw("h", 1); //send a 'hello' to the server
 }
 
 GameMode::~GameMode() {
@@ -66,85 +50,42 @@ bool GameMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 	if (evt.type == SDL_KEYDOWN && evt.key.repeat) {
 		return false;
 	}
-	//handle tracking the state of WSAD for roll control:
-	if (evt.type == SDL_KEYDOWN || evt.type == SDL_KEYUP) {
-		if (evt.key.keysym.scancode == SDL_SCANCODE_W) {
-			controls.roll_up = (evt.type == SDL_KEYDOWN);
-			return true;
-		} else if (evt.key.keysym.scancode == SDL_SCANCODE_S) {
-			controls.roll_down = (evt.type == SDL_KEYDOWN);
-			return true;
-		} else if (evt.key.keysym.scancode == SDL_SCANCODE_A) {
-			controls.roll_left = (evt.type == SDL_KEYDOWN);
-			return true;
-		} else if (evt.key.keysym.scancode == SDL_SCANCODE_D) {
-			controls.roll_right = (evt.type == SDL_KEYDOWN);
-			return true;
-		}
-	}
-	//move cursor on L/R/U/D press:
-	if (evt.type == SDL_KEYDOWN && evt.key.repeat == 0) {
-		if (evt.key.keysym.scancode == SDL_SCANCODE_LEFT) {
-			if (cursor.x > 0) {
-				cursor.x -= 1;
-			}
-			return true;
-		} else if (evt.key.keysym.scancode == SDL_SCANCODE_RIGHT) {
-			if (cursor.x + 1 < board_size.x) {
-				cursor.x += 1;
-			}
-			return true;
-		} else if (evt.key.keysym.scancode == SDL_SCANCODE_UP) {
-			if (cursor.y + 1 < board_size.y) {
-				cursor.y += 1;
-			}
-			return true;
-		} else if (evt.key.keysym.scancode == SDL_SCANCODE_DOWN) {
-			if (cursor.y > 0) {
-				cursor.y -= 1;
-			}
-			return true;
-		} else if (evt.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
-			//open pause menu on 'ESCAPE':
-			show_pause_menu();
-			return true;
-		}
+
+	if (evt.type == SDL_MOUSEMOTION) {
+		state.paddle.x = (evt.motion.x - 0.5f * window_size.x) / (0.5f * window_size.x) * Game::FrameWidth;
+		state.paddle.x = std::max(state.paddle.x, -0.5f * Game::FrameWidth + 0.5f * Game::PaddleWidth);
+		state.paddle.x = std::min(state.paddle.x,  0.5f * Game::FrameWidth - 0.5f * Game::PaddleWidth);
 	}
 
 	return false;
 }
 
 void GameMode::update(float elapsed) {
-	//if the roll keys are pressed, rotate everything on the same row or column as the cursor:
-	glm::quat dr = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-	float amt = elapsed * 1.0f;
-	if (controls.roll_left) {
-		dr = glm::angleAxis(amt, glm::vec3(0.0f, 1.0f, 0.0f)) * dr;
+	state.update(elapsed);
+
+	if (client.connection) {
+		//send game state to server:
+		client.connection.send_raw("s", 1);
+		client.connection.send_raw(&state.paddle.x, sizeof(float));
 	}
-	if (controls.roll_right) {
-		dr = glm::angleAxis(-amt, glm::vec3(0.0f, 1.0f, 0.0f)) * dr;
-	}
-	if (controls.roll_up) {
-		dr = glm::angleAxis(amt, glm::vec3(1.0f, 0.0f, 0.0f)) * dr;
-	}
-	if (controls.roll_down) {
-		dr = glm::angleAxis(-amt, glm::vec3(1.0f, 0.0f, 0.0f)) * dr;
-	}
-	if (dr != glm::quat()) {
-		for (uint32_t x = 0; x < board_size.x; ++x) {
-			glm::quat &r = board_rotations[cursor.y * board_size.x + x];
-			r = glm::normalize(dr * r);
+
+	client.poll([&](Connection *c, Connection::Event event){
+		if (event == Connection::OnOpen) {
+			//probably won't get this.
+		} else if (event == Connection::OnClose) {
+			std::cerr << "Lost connection to server." << std::endl;
+		} else { assert(event == Connection::OnRecv);
+			std::cerr << "Ignoring " << c->recv_buffer.size() << " bytes from server." << std::endl;
+			c->recv_buffer.clear();
 		}
-		for (uint32_t y = 0; y < board_size.y; ++y) {
-			if (y != cursor.y) {
-				glm::quat &r = board_rotations[y * board_size.x + cursor.x];
-				r = glm::normalize(dr * r);
-			}
-		}
-	}
+	});
 }
 
 void GameMode::draw(glm::uvec2 const &drawable_size) {
+	glClearColor(0.25f, 0.0f, 0.5f, 0.0f);
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 	//set up basic OpenGL state:
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
@@ -158,18 +99,18 @@ void GameMode::draw(glm::uvec2 const &drawable_size) {
 
 		//want scale such that board * scale fits in [-aspect,aspect]x[-1.0,1.0] screen box:
 		float scale = glm::min(
-			2.0f * aspect / float(board_size.x),
-			2.0f / float(board_size.y)
+			2.0f * aspect / float(Game::FrameWidth + 1.0f),
+			2.0f / float(Game::FrameHeight + 1.0f)
 		);
 
 		//center of board will be placed at center of screen:
-		glm::vec2 center = 0.5f * glm::vec2(board_size);
+		glm::vec2 center = glm::vec2(0.0f);
 
 		//NOTE: glm matrices are specified in column-major order
 		world_to_clip = glm::mat4(
 			scale / aspect, 0.0f, 0.0f, 0.0f,
 			0.0f, scale, 0.0f, 0.0f,
-			0.0f, 0.0f,-1.0f, 0.0f,
+			0.0f, 0.0f,-0.1f, 0.0f,
 			-(scale / aspect) * center.x, -scale * center.y, 0.0f, 1.0f
 		);
 	}
@@ -203,69 +144,32 @@ void GameMode::draw(glm::uvec2 const &drawable_size) {
 		glDrawArrays(GL_TRIANGLES, mesh.start, mesh.count);
 	};
 
-	for (uint32_t y = 0; y < board_size.y; ++y) {
-		for (uint32_t x = 0; x < board_size.x; ++x) {
-			draw_mesh(tile_mesh,
-				glm::mat4(
-					1.0f, 0.0f, 0.0f, 0.0f,
-					0.0f, 1.0f, 0.0f, 0.0f,
-					0.0f, 0.0f, 1.0f, 0.0f,
-					x+0.5f, y+0.5f,-0.5f, 1.0f
-				)
-			);
-			draw_mesh(*board_meshes[y*board_size.x+x],
-				glm::mat4(
-					1.0f, 0.0f, 0.0f, 0.0f,
-					0.0f, 1.0f, 0.0f, 0.0f,
-					0.0f, 0.0f, 1.0f, 0.0f,
-					x+0.5f, y+0.5f, 0.0f, 1.0f
-				)
-				* glm::mat4_cast(board_rotations[y*board_size.x+x])
-			);
-		}
-	}
-	draw_mesh(cursor_mesh,
+	draw_mesh(frame_mesh,
 		glm::mat4(
 			1.0f, 0.0f, 0.0f, 0.0f,
 			0.0f, 1.0f, 0.0f, 0.0f,
 			0.0f, 0.0f, 1.0f, 0.0f,
-			cursor.x+0.5f, cursor.y+0.5f, 0.0f, 1.0f
+			0.0f, 0.0f, 0.0f, 1.0f
 		)
 	);
 
-	if (Mode::current.get() == this) {
-		glDisable(GL_DEPTH_TEST);
-		std::string message = "PRESS ESC FOR MENU";
-		float height = 0.06f;
-		float width = text_width(message, height);
-		draw_text(message, glm::vec2(-0.5f * width,-0.99f), height, glm::vec4(0.0f, 0.0f, 0.0f, 0.5f));
-		draw_text(message, glm::vec2(-0.5f * width,-1.0f), height, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
+	draw_mesh(ball_mesh,
+		glm::mat4(
+			1.0f, 0.0f, 0.0f, 0.0f,
+			0.0f, 1.0f, 0.0f, 0.0f,
+			0.0f, 0.0f, 1.0f, 0.0f,
+			state.ball.x, state.ball.y, 0.0f, 1.0f
+		)
+	);
 
-		glUseProgram(0);
-	}
+	draw_mesh(paddle_mesh,
+		glm::mat4(
+			1.0f, 0.0f, 0.0f, 0.0f,
+			0.0f, 1.0f, 0.0f, 0.0f,
+			0.0f, 0.0f, 1.0f, 0.0f,
+			state.paddle.x, state.paddle.y, 0.0f, 1.0f
+		)
+	);
 
 	GL_ERRORS();
-}
-
-
-void GameMode::show_pause_menu() {
-	std::shared_ptr< MenuMode > menu = std::make_shared< MenuMode >();
-
-	std::shared_ptr< Mode > game = shared_from_this();
-	menu->background = game;
-
-	menu->choices.emplace_back("PAUSED");
-	menu->choices.emplace_back("RESUME", [game](){
-		Mode::set_current(game);
-	});
-	menu->choices.emplace_back("CRATES", [game](){
-		Mode::set_current(std::make_shared< CratesMode >());
-	});
-	menu->choices.emplace_back("QUIT", [](){
-		Mode::set_current(nullptr);
-	});
-
-	menu->selected = 1;
-
-	Mode::set_current(menu);
 }

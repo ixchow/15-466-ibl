@@ -25,6 +25,10 @@ struct MenuMode : public Mode {
 	uint32_t selected = 0;
 	float bounce = 0.0f;
 
+	//called when user presses 'escape':
+	// (note: if not defined, menumode will Mode::set_current(background).)
+	std::function< void() > on_escape;
+
 	//will render this mode in the background if not null:
 	std::shared_ptr< Mode > background;
 	float background_time_scale = 1.0f;

@@ -28,17 +28,17 @@ TODO: provide examples of code you wrote from this project that you think is goo
 Before you dive into the code, it helps to understand the overall structure of this repository.
 - Files you should read and/or edit:
     - ```main.cpp``` creates the game window and contains the main loop. You should read through this file to understand what it's doing, but you shouldn't need to change things (other than window title, size, and maybe the initial Mode).
-    - ```GameMode.*pp``` declaration+definition for the GameMode, which is the base0 code's Game struct, ported to use the new helper classes and loading style.
-    - ```CratesMode.*pp``` a game mode that involves flying around a pile of crates. Demonstrates (somewhat) how to use the Scene object. You may want to use this rather than GameMode as the starting point for your game.
-    - ```WalkMesh.*pp``` starter code that might become walk mesh code with your diligence.
-    - ```Sound.*pp``` spatial sound code. Relatively complete, but please read and understand.
-    - ```meshes/export-meshes.py``` exports meshes from a .blend file into a format usable by our game runtime. You might want to also use this to export your WalkMesh.
-    - ```meshes/export-scene.py``` exports the transform hierarchy of a blender scene to a file. Probably very useful for your game.
+    - ```GameMode.*pp``` declaration+definition for the GameMode, a basic scene-based game mode.
+    - ```WalkMesh.*pp``` code to load and walk on walkmeshes.
+    - ```Sound.*pp``` spatial sound code.
+    - ```meshes/export-meshes.py``` exports meshes from a .blend file into a format usable by our game runtime.
+    - ```meshes/export-walkmeshes.py``` exports meshes from a given layer of a .blend file into a format usable by the WalkMeshes loading code.
+    - ```meshes/export-scene.py``` exports the transform hierarchy of a blender scene to a file.
     - ```Jamfile``` responsible for telling FTJam how to build the project. If you add any additional .cpp files or want to change the name of your runtime executable you will need to modify this.
     - ```.gitignore``` ignores the ```objs/``` directory and the generated executable file. You will need to change it if your executable name changes. (If you find yourself changing it to ignore, e.g., your editor's swap files you should probably, instead be investigating making this change in the global git configuration.)
 - Files you should read the header for (and use):
     - ```MenuMode.hpp``` presents a menu with configurable choices. Can optionally display another mode in the background.
-    - ```Scene.hpp``` scene graph implementation.
+    - ```Scene.hpp``` scene graph implementation, including loading code.
     - ```Mode.hpp``` base class for modes (things that recieve events and draw).
     - ```Load.hpp``` asset loading system. Very useful for OpenGL assets.
     - ```MeshBuffer.hpp``` code to load mesh data in a variety of formats (and create vertex array objects to bind it to program attributes).
@@ -52,19 +52,25 @@ Before you dive into the code, it helps to understand the overall structure of t
 
 ## Asset Build Instructions
 
-In order to generate the ```dist/crates.pnc``` file, tell blender to execute the ```meshes/export-meshes.py``` script:
+The ```meshes/export-meshes.py``` script can write mesh data including a variety of attributes (e.g., *p*ositions, *n*ormals, *c*olors, *t*excoords) from a selected layer of a blend file:
 
 ```
-blender --background --python meshes/export-meshes.py -- meshes/crates.blend dist/crates.pnc
+blender --background --python meshes/export-meshes.py -- meshes/crates.blend:1 dist/crates.pnc
 ```
 
-In order to generate the ```dist/crates.scene``` file, tell blender to execute the ```meshes/export-scene.py``` script:
+The ```meshes/export-scene.py``` script can write the transformation hierarchy of the scene from a selected layer of a blend file, and includes references to meshes (by name):
 
 ```
-blender --background --python meshes/export-scene.py -- meshes/crates.blend dist/crates.scene
+blender --background --python meshes/export-scene.py -- meshes/crates.blend:1 dist/crates.scene
 ```
 
-There is a Makefile in the ```meshes``` directory that will do this for you.
+The ```meshes/export-walkmeshes.py``` script can writes vertices, normals, and triangle indicies of all meshes on a selected layer of a .blend file:
+
+```
+blender --background --python meshes/export-walkmeshes.py -- meshes/crates.blend:3 dist/crates.walkmesh
+```
+
+There is a Makefile in the ```meshes``` directory with some example commands of this sort in it as well.
 
 ## Runtime Build Instructions
 
