@@ -39,6 +39,7 @@ int main(int argc, char **argv) {
 		glm::uvec2 size = glm::uvec2(640, 400);
 	} config;
 
+	/*
 	//----- start connection to server ----
 	if (argc != 3) {
 		std::cout << "Usage:\n\t./client <host> <port>" << std::endl;
@@ -46,6 +47,7 @@ int main(int argc, char **argv) {
 	}
 
 	Client client(argv[1], argv[2]);
+	*/
 
 	//------------  initialization ------------
 
@@ -116,7 +118,7 @@ int main(int argc, char **argv) {
 
 	//------------ create game mode + make current --------------
 
-	Mode::set_current(std::make_shared< GameMode >(client));
+	Mode::set_current(std::make_shared< GameMode >(/*client*/));
 
 	//------------ main loop ------------
 

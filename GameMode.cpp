@@ -28,10 +28,9 @@ Load< GLuint > meshes_for_vertex_color_program(LoadTagDefault, [](){
 	return new GLuint(meshes->make_vao_for_program(vertex_color_program->program));
 });
 
-Scene::Transform *paddle_transform = nullptr;
-Scene::Transform *ball_transform = nullptr;
-
+Scene::Transform *camera_parent_transform = nullptr;
 Scene::Camera *camera = nullptr;
+Scene::Lamp *spot = nullptr;
 
 Load< Scene > scene(LoadTagDefault, [](){
 	Scene *ret = new Scene;
@@ -50,19 +49,14 @@ Load< Scene > scene(LoadTagDefault, [](){
 		obj->count = mesh.count;
 	});
 
-	//look up paddle and ball transforms:
+	//look up camera parent transform:
 	for (Scene::Transform *t = ret->first_transform; t != nullptr; t = t->alloc_next) {
-		if (t->name == "Paddle") {
-			if (paddle_transform) throw std::runtime_error("Multiple 'Paddle' transforms in scene.");
-			paddle_transform = t;
-		}
-		if (t->name == "Ball") {
-			if (ball_transform) throw std::runtime_error("Multiple 'Ball' transforms in scene.");
-			ball_transform = t;
+		if (t->name == "CameraParent") {
+			if (camera_parent_transform) throw std::runtime_error("Multiple 'CameraParent' transforms in scene.");
+			camera_parent_transform = t;
 		}
 	}
-	if (!paddle_transform) throw std::runtime_error("No 'Paddle' transform in scene.");
-	if (!ball_transform) throw std::runtime_error("No 'Ball' transform in scene.");
+	if (!camera_parent_transform) throw std::runtime_error("No 'Ball' transform in scene.");
 
 	//look up the camera:
 	for (Scene::Camera *c = ret->first_camera; c != nullptr; c = c->alloc_next) {
@@ -72,11 +66,21 @@ Load< Scene > scene(LoadTagDefault, [](){
 		}
 	}
 	if (!camera) throw std::runtime_error("No 'Camera' camera in scene.");
+
+	//look up the spotlight:
+	for (Scene::Lamp *l = ret->first_lamp; l != nullptr; l = l->alloc_next) {
+		if (l->transform->name == "Spot") {
+			if (spot) throw std::runtime_error("Multiple 'Spot' objects in scene.");
+			if (l->type != Scene::Lamp::Spot) throw std::runtime_error("Lamp 'Spot' is not a spotlight.");
+			spot = l;
+		}
+	}
+	if (!spot) throw std::runtime_error("No 'Spot' spotlight in scene.");
+
 	return ret;
 });
 
-GameMode::GameMode(Client &client_) : client(client_) {
-	client.connection.send_raw("h", 1); //send a 'hello' to the server
+GameMode::GameMode() {
 }
 
 GameMode::~GameMode() {
@@ -98,31 +102,6 @@ bool GameMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 }
 
 void GameMode::update(float elapsed) {
-	state.update(elapsed);
-
-	if (client.connection) {
-		//send game state to server:
-		client.connection.send_raw("s", 1);
-		client.connection.send_raw(&state.paddle.x, sizeof(float));
-	}
-
-	client.poll([&](Connection *c, Connection::Event event){
-		if (event == Connection::OnOpen) {
-			//probably won't get this.
-		} else if (event == Connection::OnClose) {
-			std::cerr << "Lost connection to server." << std::endl;
-		} else { assert(event == Connection::OnRecv);
-			std::cerr << "Ignoring " << c->recv_buffer.size() << " bytes from server." << std::endl;
-			c->recv_buffer.clear();
-		}
-	});
-
-	//copy game state to scene positions:
-	ball_transform->position.x = state.ball.x;
-	ball_transform->position.y = state.ball.y;
-
-	paddle_transform->position.x = state.paddle.x;
-	paddle_transform->position.y = state.paddle.y;
 }
 
 void GameMode::draw(glm::uvec2 const &drawable_size) {

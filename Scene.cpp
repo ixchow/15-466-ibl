@@ -152,6 +152,15 @@ void Scene::delete_object(Scene::Object *object) {
 	list_delete< Scene::Object >(object);
 }
 
+Scene::Lamp *Scene::new_lamp(Scene::Transform *transform) {
+	assert(transform && "Scene::Lamp must be attached to a transform.");
+	return list_new< Scene::Lamp >(first_lamp, transform);
+}
+
+void Scene::delete_lamp(Scene::Lamp *object) {
+	list_delete< Scene::Lamp >(object);
+}
+
 Scene::Camera *Scene::new_camera(Scene::Transform *transform) {
 	assert(transform && "Scene::Camera must be attached to a transform.");
 	return list_new< Scene::Camera >(first_camera, transform);
@@ -261,8 +270,8 @@ void Scene::load(std::string const &filename,
 		float fov;
 	};
 	static_assert(sizeof(LightEntry) == 4 + 1 + 3 + 4 + 4 + 4, "LightEntry is packed.");
-	std::vector< LightEntry > lights;
-	read_chunk(file, "lmp0", &lights);
+	std::vector< LightEntry > lamps;
+	read_chunk(file, "lmp0", &lamps);
 
 	if (file.peek() != EOF) {
 		std::cerr << "WARNING: trailing data in scene file '" << filename << "'" << std::endl;
@@ -325,5 +334,28 @@ void Scene::load(std::string const &filename,
 		camera->near = c.clip_near;
 		//N.b. far plane is ignored because cameras use infinite perspective matrices.
 	}
+
+	for (auto const &l : lamps) {
+		if (l.transform >= hierarchy_transforms.size()) {
+			throw std::runtime_error("scene file '" + filename + "' contains lamp entry with invalid transform index (" + std::to_string(l.transform) + ")");
+		}
+		if (l.type == 'p') {
+			//good
+		} else if (l.type == 'h') {
+			//fine
+		} else if (l.type == 's') {
+			//okay
+		} else if (l.type == 'd') {
+			//sure
+		} else {
+			std::cout << "Ignoring unrecognized lamp type (" + std::string(&l.type, 1) + ") stored in file." << std::endl;
+			continue;
+		}
+		Lamp *lamp = new_lamp(hierarchy_transforms[l.transform]);
+		lamp->type = static_cast<Lamp::Type>(l.type);
+		lamp->energy = glm::vec3(l.color) * l.energy;
+		lamp->fov = l.fov / 180.0f * 3.1415926f; //FOV is stored in degrees; convert to radians.
+	}
+
 
 }

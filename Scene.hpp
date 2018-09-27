@@ -84,6 +84,36 @@ struct Scene {
 		Object *alloc_next = nullptr;
 	};
 
+	//"Lamp"s contain information about lights:
+	struct Lamp {
+		Transform *transform; //lamps must be attached to transforms.
+		Lamp(Transform *transform_) : transform(transform_) {
+			assert(transform);
+		}
+		enum Type : char {
+			Point = 'p',
+			Hemisphere = 'h',
+			Spot = 's',
+			Directional = 'd'
+		} type = Point;
+
+		//NOTE: lights are directed along their -z axis
+		glm::vec3 energy = glm::vec3(1.0f);
+
+		float fov = glm::radians(60.0f); //vertical fov (spot)
+
+		//near and far planes for shadow maps:
+		float clip_start = 0.01f;
+		float clip_end = 100.0f;
+
+		//computed from the above:
+		glm::mat4 make_spot_projection() const;
+
+		//used by Scene to manage allocation:
+		Lamp **alloc_prev_next = nullptr;
+		Lamp *alloc_next = nullptr;
+	};
+
 	//"Camera"s contain information needed to view a scene:
 	struct Camera {
 		Transform *transform; //cameras must be attached to transforms.
@@ -117,6 +147,11 @@ struct Scene {
 	//Delete an object:
 	void delete_object(Object *);
 
+	//Create a new lamp attached to a transform:
+	Lamp *new_lamp(Transform *transform);
+	//Delete a lamp:
+	void delete_lamp(Lamp *);
+
 	//Create a new camera attached to a transform:
 	Camera *new_camera(Transform *transform);
 	//Delete a camera:
@@ -125,6 +160,7 @@ struct Scene {
 	//used to manage allocated objects:
 	Transform *first_transform = nullptr;
 	Object *first_object = nullptr;
+	Lamp *first_lamp = nullptr;
 	Camera *first_camera = nullptr;
 	//(you shouldn't be manipulating these pointers directly
 
