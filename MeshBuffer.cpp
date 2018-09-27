@@ -81,7 +81,7 @@ MeshBuffer::MeshBuffer(std::string const &filename) {
 		Normal = Attrib(3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, Normal));
 		Color = Attrib(4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(Vertex), offsetof(Vertex, Color));
 
-	} else if (filename.size() >= 4 && filename.substr(filename.size()-4) == ".pnct") {
+	} else if (filename.size() >= 5 && filename.substr(filename.size()-5) == ".pnct") {
 		struct Vertex {
 			glm::vec3 Position;
 			glm::vec3 Normal;

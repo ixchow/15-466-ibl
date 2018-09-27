@@ -170,13 +170,25 @@ void Scene::delete_camera(Scene::Camera *object) {
 	list_delete< Scene::Camera >(object);
 }
 
-void Scene::draw(Scene::Camera const *camera) const {
+void Scene::draw(Scene::Camera const *camera, Object::ProgramType program_type) const {
 	assert(camera && "Must have a camera to draw scene from.");
+	assert(program_type < Object::ProgramTypes);
 
 	glm::mat4 world_to_camera = camera->transform->make_world_to_local();
 	glm::mat4 world_to_clip = camera->make_projection() * world_to_camera;
 
+	draw(world_to_clip, program_type);
+}
+
+
+void Scene::draw(glm::mat4 const &world_to_clip, Object::ProgramType program_type) const {
+	assert(program_type < Object::ProgramTypes);
+
 	for (Scene::Object *object = first_object; object != nullptr; object = object->alloc_next) {
+
+		//don't draw if no program of this type attached to object:
+		if (object->programs[program_type].program == 0) continue;
+
 		glm::mat4 local_to_world = object->transform->make_local_to_world();
 
 		//compute modelview+projection (object space to clip space) matrix for this object:
@@ -189,24 +201,41 @@ void Scene::draw(Scene::Camera const *camera) const {
 		glm::mat3 itmv = glm::inverse(glm::transpose(glm::mat3(mv)));
 
 		//set up program uniforms:
-		glUseProgram(object->program);
-		if (object->program_mvp_mat4 != -1U) {
-			glUniformMatrix4fv(object->program_mvp_mat4, 1, GL_FALSE, glm::value_ptr(mvp));
+		Object::ProgramInfo const &info = object->programs[program_type];
+		glUseProgram(info.program);
+		if (info.mvp_mat4 != -1U) {
+			glUniformMatrix4fv(info.mvp_mat4, 1, GL_FALSE, glm::value_ptr(mvp));
 		}
-		if (object->program_mv_mat4x3 != -1U) {
-			glUniformMatrix4x3fv(object->program_mv_mat4x3, 1, GL_FALSE, glm::value_ptr(mv));
+		if (info.mv_mat4x3 != -1U) {
+			glUniformMatrix4x3fv(info.mv_mat4x3, 1, GL_FALSE, glm::value_ptr(mv));
 		}
-		if (object->program_itmv_mat3 != -1U) {
-			glUniformMatrix3fv(object->program_itmv_mat3, 1, GL_FALSE, glm::value_ptr(itmv));
+		if (info.itmv_mat3 != -1U) {
+			glUniformMatrix3fv(info.itmv_mat3, 1, GL_FALSE, glm::value_ptr(itmv));
 		}
 
-		if (object->set_uniforms) object->set_uniforms();
+		if (info.set_uniforms) info.set_uniforms();
 
-		glBindVertexArray(object->vao);
+		//set up program textures:
+		for (uint32_t i = 0; i < Object::ProgramInfo::TextureCount; ++i) {
+			if (info.textures[i] != 0) {
+				glActiveTexture(GL_TEXTURE0 + i);
+				glBindTexture(GL_TEXTURE_2D, info.textures[i]);
+			}
+		}
+
+
+		glBindVertexArray(info.vao);
 
 		//draw the object:
-		glDrawArrays(GL_TRIANGLES, object->start, object->count);
+		glDrawArrays(GL_TRIANGLES, info.start, info.count);
 	}
+
+	//unbind any still bound textures and go back to active texture unit zero:
+	for (uint32_t i = 0; i < Object::ProgramInfo::TextureCount; ++i) {
+		glActiveTexture(GL_TEXTURE0 + i);
+		glBindTexture(GL_TEXTURE_2D, 0);
+	}
+	glActiveTexture(GL_TEXTURE0);
 }
 
 

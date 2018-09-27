@@ -1,5 +1,7 @@
 #pragma once
 
+#include <glm/glm.hpp>
+
 #include <string>
 #include <vector>
 #include <stdint.h>
@@ -13,8 +15,6 @@ enum OriginLocation {
 	UpperLeftOrigin,
 };
 
-bool load_png(std::string filename, unsigned int *width, unsigned int *height, std::vector< uint32_t > *data, OriginLocation origin);
-void save_png(std::string filename, unsigned int width, unsigned int height, uint32_t const *data, OriginLocation origin);
-
-bool load_png(std::istream &from, unsigned int *width, unsigned int *height, std::vector< uint32_t > *data, OriginLocation origin = UpperLeftOrigin);
-void save_png(std::ostream &to, unsigned int width, unsigned int height, uint32_t const *data, OriginLocation origin = UpperLeftOrigin);
+//NOTE: load_png will throw on error
+void load_png(std::string filename, glm::uvec2 *size, std::vector< glm::u8vec4 > *data, OriginLocation origin);
+void save_png(std::string filename, glm::uvec2 size, glm::u8vec4 const *data, OriginLocation origin);

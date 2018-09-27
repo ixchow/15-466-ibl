@@ -11,16 +11,26 @@
 
 using std::vector;
 
-bool load_png(std::string filename, unsigned int *width, unsigned int *height, std::vector< uint32_t > *data, OriginLocation origin) {
+bool load_png(std::istream &from, unsigned int *width, unsigned int *height, vector< glm::u8vec4 > *data, OriginLocation origin);
+void save_png(std::ostream &to, unsigned int width, unsigned int height, glm::u8vec4 const *data, OriginLocation origin);
+
+
+void load_png(std::string filename, glm::uvec2 *size, std::vector< glm::u8vec4 > *data, OriginLocation origin);
+void save_png(std::string filename, unsigned int width, unsigned int height, uint32_t const *data, OriginLocation origin);
+
+void load_png(std::string filename, glm::uvec2 *size, std::vector< glm::u8vec4 > *data, OriginLocation origin) {
+	assert(size);
+
 	std::ifstream file(filename.c_str(), std::ios::binary);
 	if (!file) {
-		LOG_ERROR("  cannot open file.");
-		return false;
+		throw std::runtime_error("Failed to open PNG image file '" + filename + "'.");
 	}
-	return load_png(file, width, height, data, origin);
+	if (!load_png(file, &size->x, &size->y, data, origin)) {
+		throw std::runtime_error("Failed to read PNG image from '" + filename + "'.");
+	}
 }
 
-void save_png(std::string filename, unsigned int width, unsigned int height, uint32_t const *data, OriginLocation origin) {
+void save_png(std::string filename, unsigned int width, unsigned int height, glm::u8vec4 const *data, OriginLocation origin) {
 	std::ofstream file(filename.c_str(), std::ios::binary);
 	save_png(file, width, height, data, origin);
 }
@@ -51,7 +61,7 @@ static void user_flush_data(png_structp png_ptr) {
 }
 
 
-bool load_png(std::istream &from, unsigned int *width, unsigned int *height, vector< uint32_t > *data, OriginLocation origin) {
+bool load_png(std::istream &from, unsigned int *width, unsigned int *height, vector< glm::u8vec4 > *data, OriginLocation origin) {
 	assert(data);
 	uint32_t local_width, local_height;
 	if (width == nullptr) width = &local_width;
@@ -122,7 +132,7 @@ bool load_png(std::istream &from, unsigned int *width, unsigned int *height, vec
 }
 
 
-void save_png(std::ostream &to, unsigned int width, unsigned int height, uint32_t const *data, OriginLocation origin) {
+void save_png(std::ostream &to, unsigned int width, unsigned int height, glm::u8vec4 const *data, OriginLocation origin) {
 //After the libpng example.c
 	png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
 

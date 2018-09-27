@@ -66,18 +66,29 @@ struct Scene {
 		}
 
 		//program info:
-		GLuint program = 0;
-		GLuint program_mvp_mat4 = -1U; //uniform index for object-to-clip matrix (mat4)
-		GLuint program_mv_mat4x3 = -1U; //uniform index for model-to-lighting-space matrix (mat4x3)
-		GLuint program_itmv_mat3 = -1U; //uniform index for normal-to-lighting-space matrix (mat3)
+		enum ProgramType : uint32_t {
+			ProgramTypeDefault = 0,
+			ProgramTypeShadow = 1,
+			ProgramTypes //count of program types
+		};
+		struct ProgramInfo {
+			GLuint program = 0;
 
-		//material info:
-		std::function< void() > set_uniforms; //will be called before rendering object, use to set material parameters (e.g. glossiness)
+			//attributes:
+			GLuint vao = 0;
+			GLuint start = 0;
+			GLuint count = 0;
 
-		//attribute info:
-		GLuint vao = 0;
-		GLuint start = 0;
-		GLuint count = 0;
+			//uniforms:
+			GLuint mvp_mat4 = -1U; //uniform index for object-to-clip matrix (mat4)
+			GLuint mv_mat4x3 = -1U; //uniform index for model-to-lighting-space matrix (mat4x3)
+			GLuint itmv_mat3 = -1U; //uniform index for normal-to-lighting-space matrix (mat3)
+			std::function< void() > set_uniforms; //(optional) function to set additional uniforms
+
+			//textures:
+			enum : uint32_t { TextureCount = 4 };
+			GLuint textures[TextureCount] = {0,0,0,0}; //textures to bind
+		} programs[ProgramTypes];
 
 		//used by Scene to manage allocation:
 		Object **alloc_prev_next = nullptr;
@@ -100,10 +111,10 @@ struct Scene {
 		//NOTE: lights are directed along their -z axis
 		glm::vec3 energy = glm::vec3(1.0f);
 
-		float fov = glm::radians(60.0f); //vertical fov (spot)
+		float fov = glm::radians(45.0f); //fov (spot)
 
 		//near and far planes for shadow maps:
-		float clip_start = 0.01f;
+		float clip_start = 0.1f;
 		float clip_end = 100.0f;
 
 		//computed from the above:
@@ -168,7 +179,12 @@ struct Scene {
 
 	//Draw the scene from a given camera by computing appropriate matrices and sending all objects to OpenGL:
 	//"camera" must be non-null!
-	void draw(Camera const *camera) const;
+	void draw(Camera const *camera, Object::ProgramType = Object::ProgramTypeDefault ) const;
+
+	//More general draw function. Will render with a specified projection transformation and use programs in the given slot of all objects:
+	void draw(
+		glm::mat4 const &world_to_clip,
+		Object::ProgramType program_type) const;
 
 	~Scene(); //destructor deallocates transforms, objects, cameras
 
