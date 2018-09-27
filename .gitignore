@@ -1,5 +1,7 @@
 objs/
 *.blend[0-9]
+dist/main
+dist/main.exe
 dist/client
 dist/client.exe
 dist/server
