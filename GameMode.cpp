@@ -184,59 +184,66 @@ struct Framebuffers {
 	GLuint fb = 0;
 
 	//This framebuffer is used for shadow maps:
-	glm::uvec2 shadow_size = glm::uvec2(512, 512);
+	glm::uvec2 shadow_size = glm::uvec2(0,0);
 	GLuint shadow_depth_tex = 0;
 	GLuint shadow_fb = 0;
 
-	void allocate(glm::uvec2 const &new_size) {
-		size = new_size;
-
+	void allocate(glm::uvec2 const &new_size, glm::uvec2 const &new_shadow_size) {
 		//allocate full-screen framebuffer:
+		if (size != new_size) {
+			size = new_size;
 
-		if (color_tex == 0) glGenTextures(1, &color_tex);
-		glBindTexture(GL_TEXTURE_2D, color_tex);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, size.x, size.y, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glBindTexture(GL_TEXTURE_2D, 0);
+			if (color_tex == 0) glGenTextures(1, &color_tex);
+			glBindTexture(GL_TEXTURE_2D, color_tex);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, size.x, size.y, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+			glBindTexture(GL_TEXTURE_2D, 0);
+	
+			if (depth_rb == 0) glGenRenderbuffers(1, &depth_rb);
+			glBindRenderbuffer(GL_RENDERBUFFER, depth_rb);
+			glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, size.x, size.y);
+			glBindRenderbuffer(GL_RENDERBUFFER, 0);
+	
+			if (fb == 0) glGenFramebuffers(1, &fb);
+			glBindFramebuffer(GL_FRAMEBUFFER, fb);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_tex, 0);
+			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_rb);
+			check_fb();
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-		if (depth_rb == 0) glGenRenderbuffers(1, &depth_rb);
-		glBindRenderbuffer(GL_RENDERBUFFER, depth_rb);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, size.x, size.y);
-		glBindRenderbuffer(GL_RENDERBUFFER, 0);
+			GL_ERRORS();
+		}
 
-		if (fb == 0) glGenFramebuffers(1, &fb);
-		glBindFramebuffer(GL_FRAMEBUFFER, fb);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_tex, 0);
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_rb);
-		check_fb();
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		//allocate shadow map framebuffer:
+		if (shadow_size != new_shadow_size) {
+			shadow_size = new_shadow_size;
 
-		GL_ERRORS();
+			if (shadow_depth_tex == 0) glGenTextures(1, &shadow_depth_tex);
+			glBindTexture(GL_TEXTURE_2D, shadow_depth_tex);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, size.x, size.y, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+			glBindTexture(GL_TEXTURE_2D, 0);
+	
+			if (shadow_fb == 0) glGenFramebuffers(1, &shadow_fb);
+			glBindFramebuffer(GL_FRAMEBUFFER, shadow_fb);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadow_depth_tex, 0);
+			check_fb();
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-
-		if (shadow_depth_tex == 0) glGenTextures(1, &shadow_depth_tex);
-		glBindTexture(GL_TEXTURE_2D, shadow_depth_tex);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, size.x, size.y, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glBindTexture(GL_TEXTURE_2D, 0);
-
-		if (shadow_fb == 0) glGenFramebuffers(1, &shadow_fb);
-		glBindFramebuffer(GL_FRAMEBUFFER, shadow_fb);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadow_depth_tex, 0);
-		check_fb();
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-		GL_ERRORS();
+			GL_ERRORS();
+		}
 	}
 } fbs;
 
 void GameMode::draw(glm::uvec2 const &drawable_size) {
+	fbs.allocate(drawable_size, glm::uvec2(512, 512));
+
 	camera->aspect = drawable_size.x / float(drawable_size.y);
 
 	glClearColor(0.25f, 0.0f, 0.5f, 0.0f);
