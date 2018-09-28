@@ -35,6 +35,63 @@ Load< GLuint > meshes_for_depth_program(LoadTagDefault, [](){
 	return new GLuint(meshes->make_vao_for_program(depth_program->program));
 });
 
+//used for fullscreen passes:
+Load< GLuint > empty_vao(LoadTagDefault, [](){
+	GLuint vao = 0;
+	glGenVertexArrays(1, &vao);
+	glBindVertexArray(vao);
+	glBindVertexArray(0);
+	return new GLuint(vao);
+});
+
+Load< GLuint > blur_program(LoadTagDefault, [](){
+	GLuint program = compile_program(
+		//this draws a triangle that covers the entire screen:
+		"#version 330\n"
+		"void main() {\n"
+		"	gl_Position = vec4(4 * (gl_VertexID & 1) - 1,  2 * (gl_VertexID & 2) - 1, 0.0, 1.0);\n"
+		"}\n"
+		,
+		//NOTE on reading screen texture:
+		//texelFetch() gives direct pixel access with integer coordinates, but accessing out-of-bounds pixel is undefined:
+		//	vec4 color = texelFetch(tex, ivec2(gl_FragCoord.xy), 0);
+		//texture() requires using [0,1] coordinates, but handles out-of-bounds more gracefully (using wrap settings of underlying texture):
+		//	vec4 color = texture(tex, gl_FragCoord.xy / textureSize(tex,0));
+
+		"#version 330\n"
+		"uniform sampler2D tex;\n"
+		"out vec4 fragColor;\n"
+		"void main() {\n"
+		"	vec2 at = (gl_FragCoord.xy - 0.5 * textureSize(tex, 0)) / textureSize(tex, 0).y;\n"
+		//make blur amount more near the edges and less in the middle:
+		"	float amt = (0.01 * textureSize(tex,0).y) * max(0.0,(length(at) - 0.3)/0.2);\n"
+		//pick a vector to move in for blur using function inspired by:
+		//https://stackoverflow.com/questions/12964279/whats-the-origin-of-this-glsl-rand-one-liner
+		"	vec2 ofs = amt * normalize(vec2(\n"
+		"		fract(dot(gl_FragCoord.xy ,vec2(12.9898,78.233))),\n"
+		"		fract(dot(gl_FragCoord.xy ,vec2(96.3869,-27.5796)))\n"
+		"	));\n"
+		//do a four-pixel average to blur:
+		"	vec4 blur =\n"
+		"		+ 0.25 * texture(tex, (gl_FragCoord.xy + vec2(ofs.x,ofs.y)) / textureSize(tex, 0))\n"
+		"		+ 0.25 * texture(tex, (gl_FragCoord.xy + vec2(-ofs.y,ofs.x)) / textureSize(tex, 0))\n"
+		"		+ 0.25 * texture(tex, (gl_FragCoord.xy + vec2(-ofs.x,-ofs.y)) / textureSize(tex, 0))\n"
+		"		+ 0.25 * texture(tex, (gl_FragCoord.xy + vec2(ofs.y,-ofs.x)) / textureSize(tex, 0))\n"
+		"	;\n"
+		"	fragColor = vec4(blur.rgb, 1.0);\n" //blur;\n"
+		"}\n"
+	);
+
+	glUseProgram(program);
+
+	glUniform1i(glGetUniformLocation(program, "tex"), 0);
+
+	glUseProgram(0);
+
+	return new GLuint(program);
+});
+
+
 GLuint load_texture(std::string const &filename) {
 	glm::uvec2 size;
 	std::vector< glm::u8vec4 > data;
@@ -299,8 +356,8 @@ void GameMode::draw(glm::uvec2 const &drawable_size) {
 
 
 
-	//Draw scene to screen:
-	//Eventually: glBindFramebuffer(GL_FRAMEBUFFER, fbs.fb);
+	//Draw scene to off-screen framebuffer:
+	glBindFramebuffer(GL_FRAMEBUFFER, fbs.fb);
 	glViewport(0,0,drawable_size.x, drawable_size.y);
 
 	camera->aspect = drawable_size.x / float(drawable_size.y);
@@ -324,12 +381,17 @@ void GameMode::draw(glm::uvec2 const &drawable_size) {
 	glUniform3fv(texture_program->sky_color_vec3, 1, glm::value_ptr(glm::vec3(0.2f, 0.2f, 0.3f)));
 	glUniform3fv(texture_program->sky_direction_vec3, 1, glm::value_ptr(glm::vec3(0.0f, 0.0f, 1.0f)));
 
-	glm::mat4 world_to_spot = glm::mat4(
-		0.5f, 0.0f, 0.0f, 0.0f,
-		0.0f, 0.5f, 0.0f, 0.0f,
-		0.0f, 0.0f, 0.5f, 0.0f,
-		0.5f, 0.5f, 0.5f+0.00001f /* <-- bias */, 1.0f
-	) * spot->make_projection() * spot->transform->make_world_to_local();
+	glm::mat4 world_to_spot =
+		//This matrix converts from the spotlight's clip space ([-1,1]^3) into depth map texture coordinates ([0,1]^2) and depth map Z values ([0,1]):
+		glm::mat4(
+			0.5f, 0.0f, 0.0f, 0.0f,
+			0.0f, 0.5f, 0.0f, 0.0f,
+			0.0f, 0.0f, 0.5f, 0.0f,
+			0.5f, 0.5f, 0.5f+0.00001f /* <-- bias */, 1.0f
+		)
+		//this is the world-to-clip matrix used when rendering the shadow map:
+		* spot->make_projection() * spot->transform->make_world_to_local();
+
 	glUniformMatrix4fv(texture_program->light_to_spot_mat4, 1, GL_FALSE, glm::value_ptr(world_to_spot));
 
 	glm::mat4 spot_to_world = spot->transform->make_local_to_world();
@@ -340,13 +402,15 @@ void GameMode::draw(glm::uvec2 const &drawable_size) {
 	glm::vec2 spot_outer_inner = glm::vec2(std::cos(0.5f * spot->fov), std::cos(0.85f * 0.5f * spot->fov));
 	glUniform2fv(texture_program->spot_outer_inner_vec2, 1, glm::value_ptr(spot_outer_inner));
 
+	//This code binds texture index 1 to the shadow map:
+	// (note that this is a bit brittle -- it depends on none of the objects in the scene having a texture of index 1 set in their material data; otherwise scene::draw would unbind this texture):
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, fbs.shadow_depth_tex);
+	//The shadow_depth_tex must have these parameters set to be used as a sampler2DShadow in the shader:
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LESS);
+	//NOTE: however, these are parameters of the texture object, not the binding point, so there is no need to set them *each frame*. I'm doing it here so that you are likely to see that they are being set.
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, fbs.shadow_color_tex);
-	//glBindTexture(GL_TEXTURE_2D, *wood_tex);
 
 	scene->draw(camera);
 
@@ -354,9 +418,20 @@ void GameMode::draw(glm::uvec2 const &drawable_size) {
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glActiveTexture(GL_TEXTURE0);
 
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 	GL_ERRORS();
 
 
 	//Copy scene from color buffer to screen, performing post-processing effects:
-	//TODO
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, fbs.color_tex);
+	glUseProgram(*blur_program);
+	glBindVertexArray(*empty_vao);
+
+	glDrawArrays(GL_TRIANGLES, 0, 3);
+
+	glUseProgram(0);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, 0);
 }

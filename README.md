@@ -23,6 +23,22 @@ Good / Bad / Ugly Code:
 
 TODO: provide examples of code you wrote from this project that you think is good (elegant, simple, useful), bad (hack-y, brittle, unreadable), and ugly (particularly inelegant). Provide a sentence or two of justification for the examples.
 
+# Changes In This Base Code
+
+I've changed the main executable name back to 'main' and disabled building the server. However, ```Connection.*pp``` is still around if you decide to do some networking.
+
+I've added a new shader (which you are likely to be modifying) in ```texture_program.*pp```; it supports a shadow-map-based spotlight as well as the existing point and hemisphere lights, and gets its surface color from a texture modulated by a vertex color. This means you can use it with textured objects (with all-white vertex color) and vertex colored objects (with all-white texture).
+Scene objects support multiple shader program slots now. This means they can have different uniforms, programs (even geometry) in different rendering passes. The code uses this when rendering the shadow map.
+
+This shader, along with the code in GameMode::draw() which sets it up, is going to be very useful to dig into. Particular shadow map things that were a bit tricky:
+
+ - I'm rendering only the back-facing polygons into the shadow framebuffer; this means there is less Z-fighting on the front faces but can causes a light leak at the back of the pillar which is why there is still a little bit of bias added in the projection matrix.
+ - Clip space coordinates are in [-1,1]^3 while depth textures are indexed by values in [0,1]^2 and contain depths in [0,1]. So when transforming the vertex position into shadow map space.
+ - The texture_shader does the depth comparison in its shadow lookup by declaring spot_depth_tex as a sampler2DShadow and by setting the TEXTURE_COMPARE_MODE and TEXTURE_COMPARE_FUNC parameters on the texture in GameMode::draw . It also sets filtering mode LINEAR on the texture so that the result in a blend of the four closest depth comparisons.
+ - When used on a sampler2DShadow, the textureProj(tex, coord) returns projection and comparison on the supplied texture coordinate -- i.e., (coord.z / coord.w < tex[coord.xy / coord.w] ? 1.0 : 0.0) -- which is very convenient for writing shadow map lookups.
+
+I also added a blur shader that renders the scene to an offscreen framebuffer and then samplesa and averages it to come up with a sort of lens blur effect. (See the third part of GameMode::draw .)
+
 # Using This Base Code
 
 Before you dive into the code, it helps to understand the overall structure of this repository.
