@@ -118,6 +118,9 @@ struct Scene {
 		float clip_end = 100.0f;
 
 		//computed from the above:
+		glm::mat4 make_projection() const;
+
+		//computed from the above:
 		glm::mat4 make_spot_projection() const;
 
 		//used by Scene to manage allocation:
@@ -180,6 +183,10 @@ struct Scene {
 	//Draw the scene from a given camera by computing appropriate matrices and sending all objects to OpenGL:
 	//"camera" must be non-null!
 	void draw(Camera const *camera, Object::ProgramType = Object::ProgramTypeDefault ) const;
+
+	//Draw the scene from a given lamp by computing appropriate matrices and sending all objects to OpenGL:
+	//"lamp" must be non-null!
+	void draw(Lamp const *lamp, Object::ProgramType = Object::ProgramTypeDefault ) const;
 
 	//More general draw function. Will render with a specified projection transformation and use programs in the given slot of all objects:
 	void draw(

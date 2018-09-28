@@ -103,6 +103,12 @@ void Scene::Transform::set_parent(Transform *new_parent, Transform *before) {
 
 //---------------------------
 
+glm::mat4 Scene::Lamp::make_projection() const {
+	return glm::perspective( fov, 1.0f, clip_start, clip_end );
+}
+
+//---------------------------
+
 glm::mat4 Scene::Camera::make_projection() const {
 	return glm::infinitePerspective( fovy, aspect, near );
 }
@@ -180,6 +186,16 @@ void Scene::draw(Scene::Camera const *camera, Object::ProgramType program_type) 
 	draw(world_to_clip, program_type);
 }
 
+void Scene::draw(Scene::Lamp const *lamp, Object::ProgramType program_type) const {
+	assert(lamp && "Must have a lamp to draw scene from.");
+	assert(program_type < Object::ProgramTypes);
+
+	glm::mat4 world_to_lamp = lamp->transform->make_world_to_local();
+	glm::mat4 world_to_clip = lamp->make_projection() * world_to_lamp;
+
+	draw(world_to_clip, program_type);
+}
+
 
 void Scene::draw(glm::mat4 const &world_to_clip, Object::ProgramType program_type) const {
 	assert(program_type < Object::ProgramTypes);
@@ -195,7 +211,7 @@ void Scene::draw(glm::mat4 const &world_to_clip, Object::ProgramType program_typ
 		glm::mat4 mvp = world_to_clip * local_to_world;
 
 		//compute modelview (object space to camera local space) matrix for this object:
-		glm::mat4 mv = local_to_world;
+		glm::mat4x3 mv = glm::mat4x3(local_to_world);
 
 		//NOTE: inverse cancels out transpose unless there is scale involved
 		glm::mat3 itmv = glm::inverse(glm::transpose(glm::mat3(mv)));
@@ -222,7 +238,6 @@ void Scene::draw(glm::mat4 const &world_to_clip, Object::ProgramType program_typ
 				glBindTexture(GL_TEXTURE_2D, info.textures[i]);
 			}
 		}
-
 
 		glBindVertexArray(info.vao);
 

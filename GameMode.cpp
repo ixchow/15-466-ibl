@@ -11,8 +11,8 @@
 #include "compile_program.hpp" //helper to compile opengl shader programs
 #include "draw_text.hpp" //helper to... um.. draw text
 #include "load_save_png.hpp"
-#include "vertex_color_program.hpp"
 #include "texture_program.hpp"
+#include "depth_program.hpp"
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -27,22 +27,22 @@ Load< MeshBuffer > meshes(LoadTagDefault, [](){
 	return new MeshBuffer(data_path("vignette.pnct"));
 });
 
-Load< GLuint > meshes_for_vertex_color_program(LoadTagDefault, [](){
-	return new GLuint(meshes->make_vao_for_program(vertex_color_program->program));
-});
-
 Load< GLuint > meshes_for_texture_program(LoadTagDefault, [](){
 	return new GLuint(meshes->make_vao_for_program(texture_program->program));
 });
 
-Load< GLuint > wood_tex(LoadTagDefault, [](){
+Load< GLuint > meshes_for_depth_program(LoadTagDefault, [](){
+	return new GLuint(meshes->make_vao_for_program(depth_program->program));
+});
+
+GLuint load_texture(std::string const &filename) {
 	glm::uvec2 size;
 	std::vector< glm::u8vec4 > data;
-	load_png(data_path("textures/wood.png"), &size, &data, LowerLeftOrigin);
+	load_png(filename, &size, &data, LowerLeftOrigin);
 
-	GLuint *tex = new GLuint;
-	glGenTextures(1, tex);
-	glBindTexture(GL_TEXTURE_2D, *tex);
+	GLuint tex = 0;
+	glGenTextures(1, &tex);
+	glBindTexture(GL_TEXTURE_2D, tex);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, size.x, size.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, data.data());
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -53,69 +53,75 @@ Load< GLuint > wood_tex(LoadTagDefault, [](){
 	GL_ERRORS();
 
 	return tex;
+}
+
+Load< GLuint > wood_tex(LoadTagDefault, [](){
+	return new GLuint(load_texture(data_path("textures/wood.png")));
 });
 
 Load< GLuint > marble_tex(LoadTagDefault, [](){
-	glm::uvec2 size;
-	std::vector< glm::u8vec4 > data;
-	load_png(data_path("textures/marble.png"), &size, &data, LowerLeftOrigin);
+	return new GLuint(load_texture(data_path("textures/marble.png")));
+});
 
-	GLuint *tex = new GLuint;
-	glGenTextures(1, tex);
-	glBindTexture(GL_TEXTURE_2D, *tex);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, size.x, size.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, data.data());
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glGenerateMipmap(GL_TEXTURE_2D);
+Load< GLuint > white_tex(LoadTagDefault, [](){
+	GLuint tex = 0;
+	glGenTextures(1, &tex);
+	glBindTexture(GL_TEXTURE_2D, tex);
+	glm::u8vec4 white(0xff, 0xff, 0xff, 0xff);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, glm::value_ptr(white));
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glBindTexture(GL_TEXTURE_2D, 0);
-	GL_ERRORS();
 
-	return tex;
+	return new GLuint(tex);
 });
 
 
 Scene::Transform *camera_parent_transform = nullptr;
 Scene::Camera *camera = nullptr;
+Scene::Transform *spot_parent_transform = nullptr;
 Scene::Lamp *spot = nullptr;
 
 Load< Scene > scene(LoadTagDefault, [](){
 	Scene *ret = new Scene;
 
 	//pre-build some program info (material) blocks to assign to each object:
-	Scene::Object::ProgramInfo vcp_info;
-	vcp_info.program = vertex_color_program->program;
-	vcp_info.vao = *meshes_for_vertex_color_program;
-	vcp_info.mvp_mat4  = vertex_color_program->object_to_clip_mat4;
-	vcp_info.mv_mat4x3 = vertex_color_program->object_to_light_mat4x3;
-	vcp_info.itmv_mat3 = vertex_color_program->normal_to_light_mat3;
+	Scene::Object::ProgramInfo texture_program_info;
+	texture_program_info.program = texture_program->program;
+	texture_program_info.vao = *meshes_for_texture_program;
+	texture_program_info.mvp_mat4  = texture_program->object_to_clip_mat4;
+	texture_program_info.mv_mat4x3 = texture_program->object_to_light_mat4x3;
+	texture_program_info.itmv_mat3 = texture_program->normal_to_light_mat3;
 
+	Scene::Object::ProgramInfo depth_program_info;
+	depth_program_info.program = depth_program->program;
+	depth_program_info.vao = *meshes_for_depth_program;
+	depth_program_info.mvp_mat4  = depth_program->object_to_clip_mat4;
 
-	Scene::Object::ProgramInfo tp_info;
-	tp_info.program = texture_program->program;
-	tp_info.vao = *meshes_for_texture_program;
-	tp_info.mvp_mat4  = texture_program->object_to_clip_mat4;
-	tp_info.mv_mat4x3 = texture_program->object_to_light_mat4x3;
-	tp_info.itmv_mat3 = texture_program->normal_to_light_mat3;
 
 	//load transform hierarchy:
 	ret->load(data_path("vignette.scene"), [&](Scene &s, Scene::Transform *t, std::string const &m){
 		Scene::Object *obj = s.new_object(t);
 
+		obj->programs[Scene::Object::ProgramTypeDefault] = texture_program_info;
 		if (t->name == "Platform") {
-			obj->programs[Scene::Object::ProgramTypeDefault] = tp_info;
 			obj->programs[Scene::Object::ProgramTypeDefault].textures[0] = *wood_tex;
 		} else if (t->name == "Pedestal") {
-			obj->programs[Scene::Object::ProgramTypeDefault] = tp_info;
 			obj->programs[Scene::Object::ProgramTypeDefault].textures[0] = *marble_tex;
 		} else {
-			obj->programs[Scene::Object::ProgramTypeDefault] = vcp_info;
+			obj->programs[Scene::Object::ProgramTypeDefault].textures[0] = *white_tex;
 		}
+
+		obj->programs[Scene::Object::ProgramTypeShadow] = depth_program_info;
 
 		MeshBuffer::Mesh const &mesh = meshes->lookup(m);
 		obj->programs[Scene::Object::ProgramTypeDefault].start = mesh.start;
 		obj->programs[Scene::Object::ProgramTypeDefault].count = mesh.count;
+
+		obj->programs[Scene::Object::ProgramTypeShadow].start = mesh.start;
+		obj->programs[Scene::Object::ProgramTypeShadow].count = mesh.count;
 	});
 
 	//look up camera parent transform:
@@ -124,8 +130,14 @@ Load< Scene > scene(LoadTagDefault, [](){
 			if (camera_parent_transform) throw std::runtime_error("Multiple 'CameraParent' transforms in scene.");
 			camera_parent_transform = t;
 		}
+		if (t->name == "SpotParent") {
+			if (spot_parent_transform) throw std::runtime_error("Multiple 'SpotParent' transforms in scene.");
+			spot_parent_transform = t;
+		}
+
 	}
-	if (!camera_parent_transform) throw std::runtime_error("No 'Ball' transform in scene.");
+	if (!camera_parent_transform) throw std::runtime_error("No 'CameraParent' transform in scene.");
+	if (!spot_parent_transform) throw std::runtime_error("No 'SpotParent' transform in scene.");
 
 	//look up the camera:
 	for (Scene::Camera *c = ret->first_camera; c != nullptr; c = c->alloc_next) {
@@ -162,15 +174,23 @@ bool GameMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 	}
 
 	if (evt.type == SDL_MOUSEMOTION) {
-		state.paddle.x = (evt.motion.x - 0.5f * window_size.x) / (0.5f * window_size.x) * Game::FrameWidth;
-		state.paddle.x = std::max(state.paddle.x, -0.5f * Game::FrameWidth + 0.5f * Game::PaddleWidth);
-		state.paddle.x = std::min(state.paddle.x,  0.5f * Game::FrameWidth - 0.5f * Game::PaddleWidth);
+		if (evt.motion.state & SDL_BUTTON(SDL_BUTTON_LEFT)) {
+			camera_spin += 5.0f * evt.motion.xrel / float(window_size.x);
+			return true;
+		}
+		if (evt.motion.state & SDL_BUTTON(SDL_BUTTON_RIGHT)) {
+			spot_spin += 5.0f * evt.motion.xrel / float(window_size.x);
+			return true;
+		}
+
 	}
 
 	return false;
 }
 
 void GameMode::update(float elapsed) {
+	camera_parent_transform->rotation = glm::angleAxis(camera_spin, glm::vec3(0.0f, 0.0f, 1.0f));
+	spot_parent_transform->rotation = glm::angleAxis(spot_spin, glm::vec3(0.0f, 0.0f, 1.0f));
 }
 
 //GameMode will render to some offscreen framebuffer(s).
@@ -185,6 +205,7 @@ struct Framebuffers {
 
 	//This framebuffer is used for shadow maps:
 	glm::uvec2 shadow_size = glm::uvec2(0,0);
+	GLuint shadow_color_tex = 0; //DEBUG
 	GLuint shadow_depth_tex = 0;
 	GLuint shadow_fb = 0;
 
@@ -221,17 +242,28 @@ struct Framebuffers {
 		if (shadow_size != new_shadow_size) {
 			shadow_size = new_shadow_size;
 
-			if (shadow_depth_tex == 0) glGenTextures(1, &shadow_depth_tex);
-			glBindTexture(GL_TEXTURE_2D, shadow_depth_tex);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, size.x, size.y, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
+			if (shadow_color_tex == 0) glGenTextures(1, &shadow_color_tex);
+			glBindTexture(GL_TEXTURE_2D, shadow_color_tex);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, shadow_size.x, shadow_size.y, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+			glBindTexture(GL_TEXTURE_2D, 0);
+
+
+			if (shadow_depth_tex == 0) glGenTextures(1, &shadow_depth_tex);
+			glBindTexture(GL_TEXTURE_2D, shadow_depth_tex);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, shadow_size.x, shadow_size.y, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 			glBindTexture(GL_TEXTURE_2D, 0);
 	
 			if (shadow_fb == 0) glGenFramebuffers(1, &shadow_fb);
 			glBindFramebuffer(GL_FRAMEBUFFER, shadow_fb);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, shadow_color_tex, 0);
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadow_depth_tex, 0);
 			check_fb();
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -244,9 +276,36 @@ struct Framebuffers {
 void GameMode::draw(glm::uvec2 const &drawable_size) {
 	fbs.allocate(drawable_size, glm::uvec2(512, 512));
 
+	//Draw scene to shadow map for spotlight:
+	glBindFramebuffer(GL_FRAMEBUFFER, fbs.shadow_fb);
+	glViewport(0,0,fbs.shadow_size.x, fbs.shadow_size.y);
+
+	glClearColor(1.0f, 0.0f, 1.0f, 0.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glEnable(GL_DEPTH_TEST);
+	glDisable(GL_BLEND);
+
+	//render only back faces to shadow map (prevent shadow speckles on fronts of objects):
+	glCullFace(GL_FRONT);
+	glEnable(GL_CULL_FACE);
+
+	scene->draw(spot, Scene::Object::ProgramTypeShadow);
+
+	glDisable(GL_CULL_FACE);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	GL_ERRORS();
+
+
+
+	//Draw scene to screen:
+	//Eventually: glBindFramebuffer(GL_FRAMEBUFFER, fbs.fb);
+	glViewport(0,0,drawable_size.x, drawable_size.y);
+
 	camera->aspect = drawable_size.x / float(drawable_size.y);
 
-	glClearColor(0.25f, 0.0f, 0.5f, 0.0f);
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	//set up basic OpenGL state:
@@ -256,21 +315,48 @@ void GameMode::draw(glm::uvec2 const &drawable_size) {
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	//set up light positions:
-	glUseProgram(vertex_color_program->program);
-
-	glUniform3fv(vertex_color_program->sun_color_vec3, 1, glm::value_ptr(glm::vec3(0.81f, 0.81f, 0.76f)));
-	glUniform3fv(vertex_color_program->sun_direction_vec3, 1, glm::value_ptr(glm::normalize(glm::vec3(-0.2f, 0.2f, 1.0f))));
-	glUniform3fv(vertex_color_program->sky_color_vec3, 1, glm::value_ptr(glm::vec3(0.2f, 0.2f, 0.3f)));
-	glUniform3fv(vertex_color_program->sky_direction_vec3, 1, glm::value_ptr(glm::vec3(0.0f, 1.0f, 0.0f)));
-
 	glUseProgram(texture_program->program);
 
-	glUniform3fv(texture_program->sun_color_vec3, 1, glm::value_ptr(glm::vec3(0.81f, 0.81f, 0.76f)));
-	glUniform3fv(texture_program->sun_direction_vec3, 1, glm::value_ptr(glm::normalize(glm::vec3(-0.2f, 0.2f, 1.0f))));
+	//don't use distant directional light at all (color == 0):
+	glUniform3fv(texture_program->sun_color_vec3, 1, glm::value_ptr(glm::vec3(0.0f, 0.0f, 0.0f)));
+	glUniform3fv(texture_program->sun_direction_vec3, 1, glm::value_ptr(glm::normalize(glm::vec3(0.0f, 0.0f,-1.0f))));
+	//use hemisphere light for subtle ambient light:
 	glUniform3fv(texture_program->sky_color_vec3, 1, glm::value_ptr(glm::vec3(0.2f, 0.2f, 0.3f)));
-	glUniform3fv(texture_program->sky_direction_vec3, 1, glm::value_ptr(glm::vec3(0.0f, 1.0f, 0.0f)));
+	glUniform3fv(texture_program->sky_direction_vec3, 1, glm::value_ptr(glm::vec3(0.0f, 0.0f, 1.0f)));
+
+	glm::mat4 world_to_spot = glm::mat4(
+		0.5f, 0.0f, 0.0f, 0.0f,
+		0.0f, 0.5f, 0.0f, 0.0f,
+		0.0f, 0.0f, 0.5f, 0.0f,
+		0.5f, 0.5f, 0.5f+0.00001f /* <-- bias */, 1.0f
+	) * spot->make_projection() * spot->transform->make_world_to_local();
+	glUniformMatrix4fv(texture_program->light_to_spot_mat4, 1, GL_FALSE, glm::value_ptr(world_to_spot));
+
+	glm::mat4 spot_to_world = spot->transform->make_local_to_world();
+	glUniform3fv(texture_program->spot_position_vec3, 1, glm::value_ptr(glm::vec3(spot_to_world[3])));
+	glUniform3fv(texture_program->spot_direction_vec3, 1, glm::value_ptr(-glm::vec3(spot_to_world[2])));
+	glUniform3fv(texture_program->spot_color_vec3, 1, glm::value_ptr(glm::vec3(1.0f, 1.0f, 1.0f)));
+
+	glm::vec2 spot_outer_inner = glm::vec2(std::cos(0.5f * spot->fov), std::cos(0.85f * 0.5f * spot->fov));
+	glUniform2fv(texture_program->spot_outer_inner_vec2, 1, glm::value_ptr(spot_outer_inner));
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, fbs.shadow_depth_tex);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LESS);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, fbs.shadow_color_tex);
+	//glBindTexture(GL_TEXTURE_2D, *wood_tex);
 
 	scene->draw(camera);
 
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glActiveTexture(GL_TEXTURE0);
+
 	GL_ERRORS();
+
+
+	//Copy scene from color buffer to screen, performing post-processing effects:
+	//TODO
 }

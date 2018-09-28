@@ -61,7 +61,7 @@ SERVER_NAMES =
 
 COMMON_NAMES =
 #	Connection
-	Game
+#	Game
 	;
 
 CLIENT_NAMES =
@@ -71,6 +71,7 @@ CLIENT_NAMES =
 	compile_program
 	vertex_color_program
 	texture_program
+	depth_program
 	Scene
 	Mode
 	GameMode

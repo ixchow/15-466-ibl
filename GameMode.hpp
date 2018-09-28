@@ -4,7 +4,6 @@
 
 #include "MeshBuffer.hpp"
 #include "GL.hpp"
-#include "Game.hpp"
 
 #include <SDL.h>
 #include <glm/glm.hpp>
@@ -29,6 +28,6 @@ struct GameMode : public Mode {
 	//draw is called after update:
 	virtual void draw(glm::uvec2 const &drawable_size) override;
 
-	//------- game state -------
-	Game state;
+	float camera_spin = 0.0f;
+	float spot_spin = 0.0f;
 };
