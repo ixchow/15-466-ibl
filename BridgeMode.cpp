@@ -34,7 +34,7 @@ Load< GLuint > bridge_meshes_for_vertex_color_program(LoadTagDefault, [](){
 });
 
 Load< TransformAnimation > bridge_deploy_tanim(LoadTagDefault, [](){
-	return new TransformAnimation(data_path("bridge-deploy.manim"));
+	return new TransformAnimation(data_path("bridge-deploy.tanim"));
 });
 
 std::vector< Scene::Transform * > bridge_deploy_transforms;
