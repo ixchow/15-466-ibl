@@ -14,9 +14,12 @@ DIST=../dist
 
 all : \
 	$(DIST)/menu.p \
-	$(DIST)/vignette.pnct \
-	$(DIST)/vignette.scene \
+	$(DIST)/bridge.scene \
+	$(DIST)/bridge.pnc \
+	$(DIST)/bridge-deploy.tanim \
 
+$(DIST)/bridge-deploy.tanim : bridge.blend export-transform-animation.py
+	$(BLENDER) --background --python export-transform-animation.py -- '$<' 'Seg1,Seg2,Camera' 1 60 '$@'
 
 $(DIST)/%.p : %.blend export-meshes.py
 	$(BLENDER) --background --python export-meshes.py -- '$<' '$@'

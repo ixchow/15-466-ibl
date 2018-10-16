@@ -121,15 +121,17 @@ void MenuMode::draw(glm::uvec2 const &drawable_size) {
 		bool is_selected = (&choice - &choices[0] == selected);
 		std::string label = choice.label;
 
-		float s = choice.height * (1.0f / 3.0f);
+		float s = choice.height;
 
-		float width = text_width(label, 3.0f);
+		float width = text_width(label, 1.0f);
 
 		if (is_selected) {
-			float star_width = text_width("*", 3.0f);
+			float star_width = text_width("*", 1.0f);
 			draw_text("*", glm::vec2(s * (-0.5f * width - select_bounce - star_width), y), s);
 			draw_text(label, glm::vec2(s * (-0.5f * width), y), s);
 			draw_text("*", glm::vec2(s * (0.5f * width + select_bounce), y), s);
+		} else {
+			draw_text(label, glm::vec2(s * (-0.5f * width), y), s);
 		}
 
 		y -= choice.padding;

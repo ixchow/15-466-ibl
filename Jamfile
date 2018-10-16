@@ -75,11 +75,13 @@ CLIENT_NAMES =
 	Scene
 	Mode
 	GameMode
+	BridgeMode
 	MenuMode
 	Load
 	MeshBuffer
 	draw_text
 	Sound
+	TransformAnimation
 	;
 
 if $(OS) = NT {

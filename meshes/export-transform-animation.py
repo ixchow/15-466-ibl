@@ -37,11 +37,9 @@ print("Will read '" + infile + "' and dump frame [" + str(min_frame) + "," + str
 
 bpy.ops.wm.open_mainfile(filepath=infile)
 
-assert(object_name in bpy.data.objects)
-
-
 objs = []
 for object_name in object_names:
+	assert(object_name in bpy.data.objects)
 	obj = bpy.data.objects[object_name]
 	objs.append(obj)
 	#write index entry for object:
@@ -55,7 +53,7 @@ for object_name in object_names:
 
 #write frame:
 def write_frame():
-	global frame_data
+	global frames_data
 	for obj in objs:
 		mat = obj.matrix_world
 		#express transformation relative to parent:
@@ -64,9 +62,9 @@ def write_frame():
 			world_to_parent.invert()
 			mat = world_to_parent * mat
 		trs = mat.decompose() #turn into (translation, rotation, scale)
-		frame_data += struct.pack('3f', trs[0].x, trs[0].y, trs[0].z)
-		frame_data += struct.pack('4f', trs[1].x, trs[1].y, trs[1].z, trs[1].w)
-		frame_data += struct.pack('3f', trs[2].x, trs[2].y, trs[2].z)
+		frames_data += struct.pack('3f', trs[0].x, trs[0].y, trs[0].z)
+		frames_data += struct.pack('4f', trs[1].x, trs[1].y, trs[1].z, trs[1].w)
+		frames_data += struct.pack('3f', trs[2].x, trs[2].y, trs[2].z)
 
 
 for frame in range(min_frame, max_frame+1):
@@ -85,13 +83,13 @@ def write_chunk(magic, data):
 	blob.write(struct.pack('I', len(data))) #length
 	blob.write(data)
 
-write_chunk(b'str0', string_data)
+write_chunk(b'str0', strings_data)
 write_chunk(b'idx0', index_data)
-write_chunk(b'xff0', frame_data)
+write_chunk(b'xff0', frames_data)
 
 print("Wrote " + str(blob.tell()) + " bytes [== "
-	+ str(len(string_data)) + " bytes of strings + "
+	+ str(len(strings_data)) + " bytes of strings + "
 	+ str(len(index_data)) + " bytes of index + "
-	+ str(len(frame_data)) + " bytes of frames]"
+	+ str(len(frames_data)) + " bytes of frames]"
 	+ " to '" + outfile + "'")
 blob.close()

@@ -4,8 +4,11 @@
 //Load.hpp is included because of the call_load_functions() call:
 #include "Load.hpp"
 
-//The 'GameMode' mode plays the game:
-#include "GameMode.hpp"
+//The 'MenuMode' allows menu selections:
+#include "MenuMode.hpp"
+
+//The 'BridgeMode' is an example of mesh animations:
+#include "BridgeMode.hpp"
 
 //The 'Sound' header has functions for managing sound:
 #include "Sound.hpp"
@@ -35,7 +38,7 @@ int main(int argc, char **argv) {
 #endif
 	struct {
 		//TODO: this is where you set the title and size of your game window
-		std::string title = "TODO: Game Title";
+		std::string title = "Animation Examples";
 		glm::uvec2 size = glm::uvec2(640, 400);
 	} config;
 
@@ -118,7 +121,18 @@ int main(int argc, char **argv) {
 
 	//------------ create game mode + make current --------------
 
-	Mode::set_current(std::make_shared< GameMode >(/*client*/));
+	std::shared_ptr< MenuMode > menu = std::make_shared< MenuMode >();
+
+	menu->choices.emplace_back("SELECT SCENE");
+	menu->choices.emplace_back("BRIDGE", [&](){
+		Mode::set_current(std::make_shared< BridgeMode >());
+	});
+	menu->choices.emplace_back("EXIT", [&](){
+		Mode::set_current(nullptr);
+	});
+	menu->selected = 1;
+
+	Mode::set_current(menu);
 
 	//------------ main loop ------------
 
