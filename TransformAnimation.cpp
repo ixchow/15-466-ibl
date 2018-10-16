@@ -9,7 +9,6 @@ TransformAnimation::TransformAnimation(std::string const &filename) {
 	std::ifstream file(filename, std::ios::binary);
 
 	std::vector< char > strings_data;
-
 	read_chunk(file, "str0", &strings_data);
 
 	struct IndexEntry {
@@ -63,20 +62,33 @@ void TransformAnimationPlayer::update(float elapsed) {
 	frame += frames_per_second * elapsed;
 
 	//floor to nearest frame:
-	int32_t iframe = int32_t(std::floor(frame));
+	int32_t iframe = int32_t(std::floor(frame)); // animation.frames - 1
+	int32_t iframe2 = iframe + 1; //animation.frames
+	float amt = frame - iframe;
 
 	//hold first/last frame if out of range:
-	if (iframe < 0) iframe = 0;
-	if (iframe >= animation.frames) iframe = int32_t(animation.frames) - 1;
+	if (iframe < 0) {
+		iframe = 0;
+		iframe2 = iframe;
+		amt = 0.0f;
+	}
+	if (iframe2 >= animation.frames) { 
+		iframe = int32_t(animation.frames) - 1;
+		iframe2 = iframe;
+		amt = 0.0f;
+	}
+	assert(iframe >= 0 && iframe < animation.frames);
+	assert(iframe2 >= 0 && iframe2 < animation.frames);
 
 	//copy data from animation to transforms:
-	TransformAnimation::TRS const *frame = &animation.frames_data[animation.names.size() * iframe];
+	TransformAnimation::TRS const *frame = animation.frames_data.data() + (animation.names.size() * iframe);
+	TransformAnimation::TRS const *frame2 = animation.frames_data.data() + (animation.names.size() * iframe2);
 	assert(transforms.size() == animation.names.size());
 	for (uint32_t i = 0; i < transforms.size(); ++i) {
 		if (transforms[i] != nullptr) {
-			transforms[i]->position = frame[i].translation;
-			transforms[i]->rotation = frame[i].rotation;
-			transforms[i]->scale = frame[i].scale;
+			transforms[i]->position = glm::mix(frame[i].translation, frame2[i].translation, amt);
+			transforms[i]->rotation = glm::slerp(frame[i].rotation, frame2[i].rotation, amt);
+			transforms[i]->scale = glm::mix(frame[i].scale, frame2[i].scale, amt);
 		}
 	}
 }

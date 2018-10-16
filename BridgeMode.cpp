@@ -109,7 +109,7 @@ bool BridgeMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_siz
 
 	if (evt.type == SDL_KEYDOWN && evt.key.keysym.scancode == SDL_SCANCODE_SPACE) {
 		if (current_animations.empty()) {
-			current_animations.emplace_back(*bridge_deploy_tanim, bridge_deploy_transforms);
+			current_animations.emplace_back(*bridge_deploy_tanim, bridge_deploy_transforms, 0.1f);
 		}
 		return true;
 	}
