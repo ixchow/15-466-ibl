@@ -72,13 +72,13 @@ void TransformAnimationPlayer::update(float elapsed) {
 		iframe2 = iframe;
 		amt = 0.0f;
 	}
-	if (iframe2 >= animation.frames) { 
+	if (iframe2 >= int32_t(animation.frames)) { 
 		iframe = int32_t(animation.frames) - 1;
 		iframe2 = iframe;
 		amt = 0.0f;
 	}
-	assert(iframe >= 0 && iframe < animation.frames);
-	assert(iframe2 >= 0 && iframe2 < animation.frames);
+	assert(iframe >= 0 && iframe < int32_t(animation.frames));
+	assert(iframe2 >= 0 && iframe2 < int32_t(animation.frames));
 
 	//copy data from animation to transforms:
 	TransformAnimation::TRS const *frame = animation.frames_data.data() + (animation.names.size() * iframe);

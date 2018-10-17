@@ -1,4 +1,5 @@
 #include "BridgeMode.hpp"
+#include "MenuMode.hpp"
 
 #include "MenuMode.hpp"
 #include "TransformAnimation.hpp"
@@ -24,6 +25,7 @@
 #include <random>
 #include <unordered_map>
 
+extern std::shared_ptr< MenuMode > menu;
 
 Load< MeshBuffer > bridge_meshes(LoadTagDefault, [](){
 	return new MeshBuffer(data_path("bridge.pnc"));
@@ -111,6 +113,11 @@ bool BridgeMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_siz
 		if (current_animations.empty()) {
 			current_animations.emplace_back(*bridge_deploy_tanim, bridge_deploy_transforms, 0.1f);
 		}
+		return true;
+	}
+	if (evt.type == SDL_KEYDOWN && evt.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+		menu->background = shared_from_this();
+		Mode::set_current(menu);
 		return true;
 	}
 

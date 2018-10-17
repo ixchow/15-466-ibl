@@ -32,6 +32,8 @@
 #include <memory>
 #include <algorithm>
 
+std::shared_ptr< MenuMode > menu;
+
 int main(int argc, char **argv) {
 #ifdef _WIN32
 	try {
@@ -121,7 +123,7 @@ int main(int argc, char **argv) {
 
 	//------------ create game mode + make current --------------
 
-	std::shared_ptr< MenuMode > menu = std::make_shared< MenuMode >();
+	menu = std::make_shared< MenuMode >();
 
 	menu->choices.emplace_back("SELECT SCENE");
 	menu->choices.emplace_back("BRIDGE", [&](){
