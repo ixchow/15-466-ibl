@@ -16,10 +16,15 @@ all : \
 	$(DIST)/menu.p \
 	$(DIST)/bridge.scene \
 	$(DIST)/bridge.pnc \
+	$(DIST)/plant.pnc \
 	$(DIST)/bridge-deploy.tanim \
+	$(DIST)/plant.banims \
 
 $(DIST)/bridge-deploy.tanim : bridge.blend export-transform-animation.py
 	$(BLENDER) --background --python export-transform-animation.py -- '$<' 'Seg1,Seg2,Camera' 1 60 '$@'
+
+$(DIST)/plant.banims : plant.blend export-bone-animations.py
+	$(BLENDER) --background --python export-bone-animations.py -- '$<' 'Plant' '[0,30]Wind;[100,140]Walk' '$@'
 
 $(DIST)/%.p : %.blend export-meshes.py
 	$(BLENDER) --background --python export-meshes.py -- '$<' '$@'

@@ -7,8 +7,11 @@
 //The 'MenuMode' allows menu selections:
 #include "MenuMode.hpp"
 
-//The 'BridgeMode' is an example of mesh animations:
+//The 'BridgeMode' is an example of matrix animations:
 #include "BridgeMode.hpp"
+
+//The 'PlantMode' is an example of bone animations:
+#include "PlantMode.hpp"
 
 //The 'Sound' header has functions for managing sound:
 #include "Sound.hpp"
@@ -125,11 +128,14 @@ int main(int argc, char **argv) {
 
 	menu = std::make_shared< MenuMode >();
 
-	menu->choices.emplace_back("SELECT SCENE");
-	menu->choices.emplace_back("BRIDGE", [&](){
+	menu->choices.emplace_back("Select Scene");
+	menu->choices.emplace_back("Bridge", [&](){
 		Mode::set_current(std::make_shared< BridgeMode >());
 	});
-	menu->choices.emplace_back("EXIT", [&](){
+	menu->choices.emplace_back("Plant", [&](){
+		Mode::set_current(std::make_shared< PlantMode >());
+	});
+	menu->choices.emplace_back("Exit", [&](){
 		Mode::set_current(nullptr);
 	});
 	menu->selected = 1;

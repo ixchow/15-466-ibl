@@ -35,7 +35,7 @@ MeshBuffer::MeshBuffer(std::string const &filename) {
 		total = GLuint(data.size()); //store total for later checks on index
 
 		//store attrib locations:
-		Position = Attrib(3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, Position));
+		Position = Attrib(3, GL_FLOAT, Attrib::AsFloat, sizeof(Vertex), offsetof(Vertex, Position));
 
 	} else if (filename.size() >= 3 && filename.substr(filename.size()-3) == ".pn") {
 		struct Vertex {
@@ -55,8 +55,8 @@ MeshBuffer::MeshBuffer(std::string const &filename) {
 		total = GLuint(data.size()); //store total for later checks on index
 
 		//store attrib locations:
-		Position = Attrib(3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, Position));
-		Normal = Attrib(3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, Normal));
+		Position = Attrib(3, GL_FLOAT, Attrib::AsFloat, sizeof(Vertex), offsetof(Vertex, Position));
+		Normal = Attrib(3, GL_FLOAT, Attrib::AsFloat, sizeof(Vertex), offsetof(Vertex, Normal));
 
 	} else if (filename.size() >= 4 && filename.substr(filename.size()-4) == ".pnc") {
 		struct Vertex {
@@ -77,9 +77,9 @@ MeshBuffer::MeshBuffer(std::string const &filename) {
 		total = GLuint(data.size()); //store total for later checks on index
 
 		//store attrib locations:
-		Position = Attrib(3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, Position));
-		Normal = Attrib(3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, Normal));
-		Color = Attrib(4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(Vertex), offsetof(Vertex, Color));
+		Position = Attrib(3, GL_FLOAT, Attrib::AsFloat, sizeof(Vertex), offsetof(Vertex, Position));
+		Normal = Attrib(3, GL_FLOAT, Attrib::AsFloat, sizeof(Vertex), offsetof(Vertex, Normal));
+		Color = Attrib(4, GL_UNSIGNED_BYTE, Attrib::AsFloatFromFixedPoint, sizeof(Vertex), offsetof(Vertex, Color));
 
 	} else if (filename.size() >= 5 && filename.substr(filename.size()-5) == ".pnct") {
 		struct Vertex {
@@ -101,10 +101,10 @@ MeshBuffer::MeshBuffer(std::string const &filename) {
 		total = GLuint(data.size()); //store total for later checks on index
 
 		//store attrib locations:
-		Position = Attrib(3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, Position));
-		Normal = Attrib(3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, Normal));
-		Color = Attrib(4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(Vertex), offsetof(Vertex, Color));
-		TexCoord = Attrib(2, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, TexCoord));
+		Position = Attrib(3, GL_FLOAT, Attrib::AsFloat, sizeof(Vertex), offsetof(Vertex, Position));
+		Normal = Attrib(3, GL_FLOAT, Attrib::AsFloat, sizeof(Vertex), offsetof(Vertex, Normal));
+		Color = Attrib(4, GL_UNSIGNED_BYTE, Attrib::AsFloatFromFixedPoint, sizeof(Vertex), offsetof(Vertex, Color));
+		TexCoord = Attrib(2, GL_FLOAT, Attrib::AsFloat, sizeof(Vertex), offsetof(Vertex, TexCoord));
 
 	} else {
 		throw std::runtime_error("Unknown file type '" + filename + "'");
@@ -179,7 +179,7 @@ GLuint MeshBuffer::make_vao_for_program(GLuint program) const {
 		if (location == -1) {
 			std::cerr << "WARNING: attribute '" << name << "' in mesh buffer isn't active in program." << std::endl;
 		} else {
-			glVertexAttribPointer(location, attrib.size, attrib.type, attrib.normalized, attrib.stride, (GLbyte *)0 + attrib.offset);
+			attrib.VertexAttribPointer(location);
 			glEnableVertexAttribArray(location);
 			bound.insert(location);
 		}

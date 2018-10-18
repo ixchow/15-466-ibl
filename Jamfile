@@ -70,18 +70,21 @@ CLIENT_NAMES =
 	data_path
 	compile_program
 	vertex_color_program
+	bone_vertex_color_program
 	texture_program
 	depth_program
 	Scene
 	Mode
 	GameMode
 	BridgeMode
+	PlantMode
 	MenuMode
 	Load
 	MeshBuffer
 	draw_text
 	Sound
 	TransformAnimation
+	BoneAnimation
 	;
 
 if $(OS) = NT {
