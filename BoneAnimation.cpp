@@ -3,6 +3,8 @@
 #include "read_chunk.hpp"
 #include "gl_errors.hpp"
 
+#include <glm/gtc/type_ptr.hpp>
+
 #include <set>
 #include <fstream>
 
@@ -189,4 +191,50 @@ GLuint BoneAnimation::make_vao_for_program(GLuint program) const {
 	GL_ERRORS();
 
 	return vao;
+}
+
+BoneAnimationPlayer::BoneAnimationPlayer(BoneAnimation const &banims_, BoneAnimation::Animation const &anim_, LoopOrOnce loop_or_once_, float speed) : banims(banims_), anim(anim_), loop_or_once(loop_or_once_) {
+	set_speed(speed);
+}
+
+void BoneAnimationPlayer::update(float elapsed) {
+	position += elapsed * position_per_second;
+	if (loop_or_once == Loop) {
+		position -= std::floor(position);
+	} else { //(loop_or_once == Once)
+		position = std::max(std::min(position, 1.0f), 0.0f);
+	}
+}
+
+void BoneAnimationPlayer::set_uniform(GLint bones_mat4x3_array) const {
+	std::vector< glm::mat4x3 > bone_to_object(banims.bones.size()); //needed for hierarchy
+	std::vector< glm::mat4x3 > bones(banims.bones.size()); //actual uniforms
+
+	int32_t frame = std::floor((anim.end - 1 - anim.begin) * position + anim.begin);
+	if (frame < anim.begin) frame = anim.begin;
+	if (frame > anim.end-1) frame = anim.end-1;
+	BoneAnimation::PoseBone const *pose = banims.get_frame(frame);
+	for (uint32_t b = 0; b < bones.size(); ++b) {
+		BoneAnimation::PoseBone const &pose_bone = pose[b];
+		BoneAnimation::Bone const &bone = banims.bones[b];
+
+		glm::mat3 r = glm::mat3_cast(pose_bone.rotation);
+		glm::mat3 rs = glm::mat3(
+			r[0] * pose_bone.scale.x,
+			r[1] * pose_bone.scale.y,
+			r[2] * pose_bone.scale.z
+		);
+		glm::mat4x3 trs = glm::mat4x3(
+			rs[0], rs[1], rs[2], pose_bone.position
+		);
+
+		if (bone.parent == -1U) {
+			bone_to_object[b] = trs;
+			bone_to_object[b] = glm::mat4x3(1.0f); //clear root position
+		} else {
+			bone_to_object[b] = bone_to_object[bone.parent] * glm::mat4(trs);
+		}
+		bones[b] = bone_to_object[b] * glm::mat4(bone.inverse_bind_matrix);
+	}
+	glUniformMatrix4x3fv(bones_mat4x3_array, bones.size(), GL_FALSE, glm::value_ptr(bones[0]));
 }

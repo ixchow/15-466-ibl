@@ -6,6 +6,8 @@
 #include "TransformAnimation.hpp"
 #include "GL.hpp"
 
+#include "BoneAnimation.hpp"
+
 #include <SDL.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -25,13 +27,18 @@ struct PlantMode : public Mode {
 
 	//controls:
 	bool mouse_captured = false;
+	bool forward = false;
+	bool backward = false;
 
 	//scene:
 	Scene scene;
+	Scene::Object *plant = nullptr;
 	Scene::Camera *camera = nullptr;
-	float camera_radius = 7.0f;
+	float camera_radius = 10.0f;
 	float camera_azimuth = glm::radians(60.0f);
 	float camera_elevation = glm::radians(45.0f);
 
-	float wind_position = 0.0f;
+	std::vector< BoneAnimationPlayer > plant_animations;
+
+	float wind_acc = 0.0f;
 };

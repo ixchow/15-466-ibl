@@ -68,5 +68,24 @@ struct BoneAnimation {
 };
 
 struct BoneAnimationPlayer {
-	//TODO
+	enum LoopOrOnce { Once, Loop };
+	BoneAnimationPlayer(BoneAnimation const &banims, BoneAnimation::Animation const &anim, LoopOrOnce loop_or_once = Once, float speed = 1.0f);
+
+	BoneAnimation const &banims;
+	BoneAnimation::Animation const &anim;
+
+	void set_speed(float speed, float fps = 24.0f) {
+		position_per_second = speed / ((anim.end-1-anim.begin) / fps);
+	}
+
+	float position = 0.0f; //from 0.0 == beginning to 1.0 == end
+	float position_per_second = 1.0f;
+	LoopOrOnce loop_or_once = Once;
+
+	void update(float elapsed);
+
+	void set_uniform(GLint bones_mat4x3_array) const;
+
+	bool done() const { return (loop_or_once == Once && position >= 1.0f); }
+
 };

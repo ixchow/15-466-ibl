@@ -86,39 +86,30 @@ PlantMode::PlantMode() {
 		plant_info.mvp_mat4 = bone_vertex_color_program->object_to_clip_mat4;
 		plant_info.mv_mat4x3 = bone_vertex_color_program->object_to_light_mat4x3;
 		plant_info.itmv_mat3 = bone_vertex_color_program->normal_to_light_mat3;
-		plant_info.set_uniforms = [this](){
-			std::vector< glm::mat4x3 > bone_to_object(plant_banims->bones.size()); //needed for hierarchy
-			std::vector< glm::mat4x3 > bones(plant_banims->bones.size()); //actual uniforms
-			int32_t frame_index = int32_t(wind_position * (plant_banim_walk->end - 1 - plant_banim_walk->begin) + plant_banim_walk->begin);
-			BoneAnimation::PoseBone const *frame = plant_banims->get_frame(frame_index);
-			for (uint32_t b = 0; b < bones.size(); ++b) {
-				BoneAnimation::PoseBone const &pose_bone = frame[b];
-				BoneAnimation::Bone const &bone = plant_banims->bones[b];
 
-				glm::mat3 r = glm::mat3_cast(pose_bone.rotation);
-				glm::mat3 rs = glm::mat3(
-					r[0] * pose_bone.scale.x,
-					r[1] * pose_bone.scale.y,
-					r[2] * pose_bone.scale.z
-				);
-				glm::mat4x3 trs = glm::mat4x3(
-					rs[0], rs[1], rs[2], pose_bone.position
-				);
-
-				if (bone.parent == -1U) {
-					bone_to_object[b] = trs;
-					//bone_to_object[b] = glm::mat4x3(1.0f); //fix root position
-				} else {
-					bone_to_object[b] = bone_to_object[bone.parent] * glm::mat4(trs);
-				}
-				bones[b] = bone_to_object[b] * glm::mat4(bone.inverse_bind_matrix);
+		plant_animations.reserve(5);
+		for (int32_t x = -2; x <= 2; ++x) {
+			if (x != 0) {
+				plant_animations.emplace_back(*plant_banims, *plant_banim_wind, BoneAnimationPlayer::Once);
+				plant_animations.back().position = 1.0f;
+			} else {
+				plant_animations.emplace_back(*plant_banims, *plant_banim_walk, BoneAnimationPlayer::Loop, 0.0f);
 			}
-			glUniformMatrix4x3fv(bone_vertex_color_program->bones_mat4x3_array, plant_banims->bones.size(), GL_FALSE, glm::value_ptr(bones[0]));
-		};
 
-		Scene::Transform *transform = scene.new_transform();
-		Scene::Object *plant = scene.new_object(transform);
-		plant->programs[Scene::Object::ProgramTypeDefault] = plant_info;
+			BoneAnimationPlayer *player = &plant_animations.back();
+		
+			plant_info.set_uniforms = [player](){
+				player->set_uniform(bone_vertex_color_program->bones_mat4x3_array);
+			};
+
+			Scene::Transform *transform = scene.new_transform();
+			transform->position.x = x * 2.5f;
+			Scene::Object *plant = scene.new_object(transform);
+			plant->programs[Scene::Object::ProgramTypeDefault] = plant_info;
+
+			if (x == 0) this->plant = plant;
+		};
+		assert(plant_animations.size() == 5);
 	}
 
 	{ //make a camera:
@@ -151,6 +142,23 @@ bool PlantMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size
 		return true;
 	}
 
+	if (evt.type == SDL_KEYDOWN && evt.key.keysym.scancode == SDL_SCANCODE_UP) {
+		forward = true;
+		return true;
+	}
+	if (evt.type == SDL_KEYUP && evt.key.keysym.scancode == SDL_SCANCODE_UP) {
+		forward = false;
+		return true;
+	}
+	if (evt.type == SDL_KEYDOWN && evt.key.keysym.scancode == SDL_SCANCODE_DOWN) {
+		backward = true;
+		return true;
+	}
+		if (evt.type == SDL_KEYUP && evt.key.keysym.scancode == SDL_SCANCODE_DOWN) {
+		backward = false;
+		return true;
+	}
+
 	if (evt.type == SDL_MOUSEBUTTONDOWN) {
 		if (!mouse_captured) {
 			SDL_SetRelativeMouseMode(SDL_TRUE);
@@ -178,20 +186,43 @@ bool PlantMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size
 }
 
 void PlantMode::update(float elapsed) {
+
+	{
+		float step = 0.0f;
+		if (forward) step += elapsed * 4.0f;
+		if (backward) step -= elapsed * 4.0f;
+		plant->transform->position.y += step;
+		plant_animations[2].position -= step / 1.88803f;
+		plant_animations[2].position -= std::floor(plant_animations[2].position);
+	}
+
 	float ce = std::cos(camera_elevation);
 	float se = std::sin(camera_elevation);
 	float ca = std::cos(camera_azimuth);
 	float sa = std::sin(camera_azimuth);
-	camera->transform->position = camera_radius * glm::vec3(ce * ca, ce * sa, se);
+	camera->transform->position = camera_radius * glm::vec3(ce * ca, ce * sa, se) + plant->transform->position;
 	camera->transform->rotation =
 		glm::quat_cast(glm::transpose(glm::mat3(glm::lookAt(
 			camera->transform->position,
-			glm::vec3(0.0f, 0.0f, 0.0f),
+			plant->transform->position,
 			glm::vec3(0.0f, 0.0f, 1.0f)
 		))));
 	
-	wind_position += elapsed;
-	wind_position -= std::floor(wind_position);
+	static std::mt19937 mt(0xfeedf00d);
+	wind_acc -= elapsed;
+	if (wind_acc < 0.0f) {
+		wind_acc = mt() / float(mt.max()) * 2.0f;
+		uint32_t idx = mt() % plant_animations.size();
+		if (idx != 2) {
+			if (plant_animations[idx].done()) {
+				plant_animations[idx].position = 0.0f;
+			}
+		}
+	}
+
+	for (auto &anim : plant_animations) {
+		anim.update(elapsed);
+	}
 }
 
 void PlantMode::draw(glm::uvec2 const &drawable_size) {
