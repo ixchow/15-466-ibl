@@ -211,8 +211,8 @@ void BoneAnimationPlayer::set_uniform(GLint bones_mat4x3_array) const {
 	std::vector< glm::mat4x3 > bones(banims.bones.size()); //actual uniforms
 
 	int32_t frame = std::floor((anim.end - 1 - anim.begin) * position + anim.begin);
-	if (frame < anim.begin) frame = anim.begin;
-	if (frame > anim.end-1) frame = anim.end-1;
+	if (frame < int32_t(anim.begin)) frame = anim.begin;
+	if (frame > int32_t(anim.end)-1) frame = int32_t(anim.end)-1;
 	BoneAnimation::PoseBone const *pose = banims.get_frame(frame);
 	for (uint32_t b = 0; b < bones.size(); ++b) {
 		BoneAnimation::PoseBone const &pose_bone = pose[b];
