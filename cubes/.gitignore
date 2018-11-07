@@ -1,0 +1,3 @@
+hdr_to_cube
+*.o
+DEBUG-*png
