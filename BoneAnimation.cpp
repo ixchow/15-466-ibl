@@ -2,6 +2,7 @@
 
 #include "read_chunk.hpp"
 #include "gl_errors.hpp"
+#include "make_vao_for_program.hpp"
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -141,56 +142,15 @@ const BoneAnimation::Animation &BoneAnimation::lookup(std::string const &name) c
 }
 
 GLuint BoneAnimation::make_vao_for_program(GLuint program) const {
+	std::vector< std::pair< char const *, MeshBuffer::Attrib const & > > attribs;
+	attribs.emplace_back("Position", Position);
+	attribs.emplace_back("Normal", Normal);
+	attribs.emplace_back("Color", Color);
+	attribs.emplace_back("TexCoord", TexCoord);
+	attribs.emplace_back("BoneWeights", BoneWeights);
+	attribs.emplace_back("BoneIndices", BoneIndices);
 
-
-	GL_ERRORS();
-	//create a new vertex array object:
-	GLuint vao = 0;
-	glGenVertexArrays(1, &vao);
-	glBindVertexArray(vao);
-
-	//Try to bind all attributes in this buffer:
-	std::set< GLuint > bound;
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	auto bind_attribute = [&](char const *name, MeshBuffer::Attrib const &attrib) {
-		if (attrib.size == 0) return; //don't bind empty attribs
-		GLint location = glGetAttribLocation(program, name);
-		if (location == -1) {
-			std::cerr << "WARNING: attribute '" << name << "' in mesh buffer isn't active in program." << std::endl;
-		} else {
-			attrib.VertexAttribPointer(location);
-			glEnableVertexAttribArray(location);
-			bound.insert(location);
-		}
-	};
-	bind_attribute("Position", Position);
-	bind_attribute("Normal", Normal);
-	bind_attribute("Color", Color);
-	bind_attribute("TexCoord", TexCoord);
-	bind_attribute("BoneWeights", BoneWeights);
-	bind_attribute("BoneIndices", BoneIndices);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-
-	//Check that all active attributes were bound:
-	GLint active = 0;
-	glGetProgramiv(program, GL_ACTIVE_ATTRIBUTES, &active);
-	assert(active >= 0 && "Doesn't makes sense to have negative active attributes.");
-	for (GLuint i = 0; i < GLuint(active); ++i) {
-		GLchar name[100];
-		GLint size = 0;
-		GLenum type = 0;
-		glGetActiveAttrib(program, i, 100, NULL, &size, &type, name);
-		name[99] = '\0';
-		GLint location = glGetAttribLocation(program, name);
-		if (!bound.count(GLuint(location))) {
-			throw std::runtime_error("ERROR: active attribute '" + std::string(name) + "' in program is not bound.");
-		}
-	}
-
-	GL_ERRORS();
-
-	return vao;
+	return ::make_vao_for_program(vbo, attribs.begin(), attribs.end(), program);
 }
 
 BoneAnimationPlayer::BoneAnimationPlayer(BoneAnimation const &banims_, BoneAnimation::Animation const &anim_, LoopOrOnce loop_or_once_, float speed) : banims(banims_), anim(anim_), loop_or_once(loop_or_once_) {

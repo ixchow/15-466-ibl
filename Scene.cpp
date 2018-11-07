@@ -235,7 +235,7 @@ void Scene::draw(glm::mat4 const &world_to_clip, Object::ProgramType program_typ
 		for (uint32_t i = 0; i < Object::ProgramInfo::TextureCount; ++i) {
 			if (info.textures[i] != 0) {
 				glActiveTexture(GL_TEXTURE0 + i);
-				glBindTexture(GL_TEXTURE_2D, info.textures[i]);
+				glBindTexture(info.texture_targets[i], info.textures[i]);
 			}
 		}
 
@@ -243,13 +243,17 @@ void Scene::draw(glm::mat4 const &world_to_clip, Object::ProgramType program_typ
 
 		//draw the object:
 		glDrawArrays(GL_TRIANGLES, info.start, info.count);
+
+		//unbind textures:
+		for (uint32_t i = 0; i < Object::ProgramInfo::TextureCount; ++i) {
+			if (info.textures[i] != 0) {
+				glActiveTexture(GL_TEXTURE0 + i);
+				glBindTexture(info.texture_targets[i], 0);
+			}
+		}
 	}
 
-	//unbind any still bound textures and go back to active texture unit zero:
-	for (uint32_t i = 0; i < Object::ProgramInfo::TextureCount; ++i) {
-		glActiveTexture(GL_TEXTURE0 + i);
-		glBindTexture(GL_TEXTURE_2D, 0);
-	}
+	//go back to active texture unit zero:
 	glActiveTexture(GL_TEXTURE0);
 }
 

@@ -36,12 +36,18 @@ enum Face {
 };
 
 int main(int argc, char **argv) {
-	if (argc != 3) {
-		std::cerr << "Usage:\n\t./hdr_to_cube <latlon.hdr> <cube.png>" << std::endl;
+	if (argc != 4) {
+		std::cerr << "Usage:\n\t./hdr_to_cube <latlon.hdr> <cube size> <cube.png>" << std::endl;
 		return 1;
 	}
 	std::string hdr_file = argv[1];
-	std::string png_file = argv[2];
+	int32_t cube_size = std::atoi(argv[2]);
+	std::string png_file = argv[3];
+
+	if (cube_size < 1) {
+		std::cerr << "Cube map size must be positive." << std::endl;
+		return 1;
+	}
 
 	glm::uvec2 size;
 	std::vector< glm::u8vec4 > data_rgbe;
@@ -58,10 +64,22 @@ int main(int argc, char **argv) {
 	}
 	std::cout << " done." << std::endl;
 
+/*
 	//check the conversion by dumping tone-mapped values:
 	std::cout << "Writing tone-mapped png [DEBUG-latlon.png]..."; std::cout.flush();
 	save_tone_mapped_png("DEBUG-latlon.png", size, data);
 	std::cout << " done." << std::endl;
+*/
+
+/*
+	//round trip through conversion funcs again:
+	for (auto &pix : data) {
+		pix = rgbe_to_float( float_to_rgbe( pix ) );
+	}
+	std::cout << "Writing tone-mapped png [DEBUG-latlon-2.png]..."; std::cout.flush();
+	save_tone_mapped_png("DEBUG-latlon-2.png", size, data);
+	std::cout << " done." << std::endl;
+*/
 
 	//function for sampling a given direction from latlon map:
 	auto lookup = [&data,&size](glm::vec3 const &dir) -> glm::vec3 {
@@ -83,7 +101,6 @@ int main(int argc, char **argv) {
 	};
 
 	//accumulate color into cubemap pixels:
-	uint32_t cube_size = 512U;
 	std::vector< glm::vec3 > faces[6]; //+x, -x, +y, -y, +z, -z
 
 	//will sample multiple times per direction:
@@ -118,8 +135,8 @@ int main(int argc, char **argv) {
 	
 		std::vector< glm::vec3 > &face = faces[f];
 		face.reserve(cube_size * cube_size);
-		for (uint32_t t = 0; t < cube_size; ++t) {
-			for (uint32_t s = 0; s < cube_size; ++s) {
+		for (uint32_t t = 0; t < uint32_t(cube_size); ++t) {
+			for (uint32_t s = 0; s < uint32_t(cube_size); ++s) {
 				glm::vec3 acc = glm::vec3(0.0f);
 				for (auto const &sample : samples) {
 					glm::vec3 dir = ma
@@ -146,14 +163,25 @@ int main(int argc, char **argv) {
 	//write a single +x/-x/+y/-y/+z/-z (all stacked in a column with +x at the bottom) file for storage:
 	std::cout << "Writing final rgbe png..."; std::cout.flush();
 	std::vector< glm::u8vec4 > cube_data;
+	std::vector< glm::vec3 > cube_data_float; //DEBUG
 	cube_data.reserve(6 * cube_size * cube_size);
 	uint32_t overflow = 0;
 	for (auto const &face : faces) {
 		for (auto const &pix : face) {
 			cube_data.emplace_back( float_to_rgbe( pix ) );
+			cube_data_float.emplace_back( pix );
 			if (cube_data.back() == glm::u8vec4(0xff, 0xff, 0xff, 0xff)) ++overflow;
 		}
 	}
+	assert(cube_data.size() == 6 * cube_size * cube_size);
+	std::cout << " done." << std::endl;
 	std::cout << "Output contains " << overflow << " bright-white (likely overflow) pixels." << std::endl;
 	save_png(png_file, glm::uvec2(cube_size, 6 * cube_size), cube_data.data(), LowerLeftOrigin);
+
+	/*{ //DEBUG: tone map and save again:
+		assert(cube_data_float.size() == cube_size * 6 * cube_size);
+		std::cout << "Writing tone-mapped png [DEBUG-stack.png]..."; std::cout.flush();
+		save_tone_mapped_png("DEBUG-stack.png", glm::uvec2(cube_size, 6 * cube_size), cube_data_float);
+		std::cout << " done." << std::endl;
+	}*/
 }

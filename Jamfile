@@ -72,12 +72,14 @@ CLIENT_NAMES =
 	vertex_color_program
 	bone_vertex_color_program
 	texture_program
+	cube_program
 	depth_program
 	Scene
 	Mode
 	GameMode
 	BridgeMode
 	PlantMode
+	ShowCubeMode
 	MenuMode
 	Load
 	MeshBuffer

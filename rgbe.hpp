@@ -18,7 +18,7 @@ inline glm::vec3 rgbe_to_float(glm::u8vec4 col) {
 
 inline glm::u8vec4 float_to_rgbe(glm::vec3 col) {
 
-	float d = std::max(col.r, std::max(col.g, col.r));
+	float d = std::max(col.r, std::max(col.g, col.b));
 
 	//1e-32 is from the radiance code, and is probably larger than strictly necessary:
 	if (d <= 1e-32f) {

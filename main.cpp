@@ -13,6 +13,9 @@
 //The 'PlantMode' is an example of bone animations:
 #include "PlantMode.hpp"
 
+//The 'ShowCubeMode' shows a cubemap (on a cube and in the sky):
+#include "ShowCubeMode.hpp"
+
 //The 'Sound' header has functions for managing sound:
 #include "Sound.hpp"
 
@@ -129,6 +132,9 @@ int main(int argc, char **argv) {
 	menu = std::make_shared< MenuMode >();
 
 	menu->choices.emplace_back("Select Scene");
+	menu->choices.emplace_back("Cube", [&](){
+		Mode::set_current(std::make_shared< ShowCubeMode >());
+	});
 	menu->choices.emplace_back("Bridge", [&](){
 		Mode::set_current(std::make_shared< BridgeMode >());
 	});

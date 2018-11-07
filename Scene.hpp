@@ -87,7 +87,8 @@ struct Scene {
 
 			//textures:
 			enum : uint32_t { TextureCount = 4 };
-			GLuint textures[TextureCount] = {0,0,0,0}; //textures to bind
+			GLuint textures[TextureCount] = {0,0,0,0}; //textures to bind to first four texture units
+			GLenum texture_targets[TextureCount] = {GL_TEXTURE_2D, GL_TEXTURE_2D, GL_TEXTURE_2D, GL_TEXTURE_2D};
 		} programs[ProgramTypes];
 
 		//used by Scene to manage allocation:
