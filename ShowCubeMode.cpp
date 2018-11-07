@@ -9,6 +9,7 @@
 #include "data_path.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <random>
 
@@ -166,7 +167,7 @@ bool ShowCubeMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_s
 			float pitch = -evt.motion.yrel / float(window_size.y) * camera->fovy;
 
 			//update camera angles:
-			camera_elevation = glm::clamp(camera_elevation + pitch, glm::radians(10.0f), glm::radians(80.0f));
+			camera_elevation = glm::clamp(camera_elevation + pitch, glm::radians(-80.0f), glm::radians(80.0f));
 			camera_azimuth = camera_azimuth + yaw;
 		}
 	}
@@ -198,7 +199,39 @@ void ShowCubeMode::draw(glm::uvec2 const &drawable_size) {
 	//set up basic OpenGL state:
 	glEnable(GL_DEPTH_TEST);
 	glDisable(GL_BLEND);
-	glDisable(GL_CULL_FACE);
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+
+	{ //draw the sky by drawing the cube centered at the camera:
+		glDisable(GL_DEPTH_TEST); //don't write to depth buffer
+		//only render the back of the cube:
+		glDisable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
+
+		glUseProgram(cube_program->program);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, *sky_cube);
+
+		//make a matrix that acts as if the camera is at the origin:
+		glm::mat4 world_to_camera = camera->transform->make_world_to_local();
+		world_to_camera[3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+		glm::mat4 world_to_clip = camera->make_projection() * world_to_camera;
+		glm::mat4 object_to_clip = world_to_clip;
+
+		glUniformMatrix4fv(cube_program->object_to_clip_mat4, 1, GL_FALSE, glm::value_ptr(object_to_clip));
+
+		glBindVertexArray(*cube_mesh_for_cube_program);
+
+		glDrawArrays(GL_TRIANGLES, 0, cube_mesh_count);
+
+		glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+
+		//reset state:
+		glEnable(GL_DEPTH_TEST);
+		//glDisable(GL_CULL_FACE);
+		//glCullFace(GL_BACK);
+	}
+
 
 	//Note: no light positions to set up, yay!
 	scene.draw(camera);
