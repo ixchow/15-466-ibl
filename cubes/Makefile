@@ -1,6 +1,9 @@
 
 CPP = g++ -Wall -Werror -std=c++14
 
+../dist/cape_hill_diffuse.png : ../dist/cape_hill_512.png blur_cube
+	./blur_cube '$<' diffuse 2000 16 '$@'
+
 ../dist/cape_hill_512.png : cape_hill_4k.hdr hdr_to_cube
 	./hdr_to_cube '$<' 512 '$@'
 

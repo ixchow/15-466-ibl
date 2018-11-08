@@ -73,6 +73,7 @@ CLIENT_NAMES =
 	bone_vertex_color_program
 	texture_program
 	cube_program
+	cube_diffuse_program
 	depth_program
 	Scene
 	Mode

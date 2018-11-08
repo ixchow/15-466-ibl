@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
 
 	if (sum_bright_directions) {
 		uint32_t bright = std::min< uint32_t >(in_data.size(), 200);
-		std::cout << "Removing the brightest " << bright << " pixels..."; std::cout.flush();
+		std::cout << "Separating the brightest " << bright << " pixels..."; std::cout.flush();
 		std::vector< std::pair< float, uint32_t > > pixels;
 		pixels.reserve(in_data.size());
 		for (auto const &px : in_data) {
@@ -155,6 +155,7 @@ int main(int argc, char **argv) {
 
 			in_data[i] = glm::vec3(0.0f, 0.0f, 0.0f); //remove from input data
 		}
+		std::cout << " done." << std::endl;
 	}
 
 	{ //DEBUG: tone map and save again:
