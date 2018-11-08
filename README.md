@@ -1,7 +1,6 @@
-# Animation Examples
+# Image-Based Lighting Examples + Utilities
 
-This is a version of the 15-466 base code (base3, in fact) with support for authored animations.
+This is a version of the 15-466 base code (base3, in fact) with some example image-based lighting code.
 
-## Transform Animations
-
-See [meshes/export-transform-animation.py](meshes/export-transform-animation.py) for export code and [TransformAnimation.hpp](TransformAnimation.hpp)/[TransformAnimation.cpp](TransformAnimation.cpp) for runtime code.
+See the ```cubes/``` directory for processing code and the ```rgbe.hpp``` function for conversion between RGBE8 and floating point color data.
+See ```ShowCubeMode.cpp``` for the example cubemap loading, setup, and rendering code, and ```cube_*_program.*pp``` for the shaders themselves.
