@@ -24,10 +24,15 @@ struct ShowCubeMode : public Mode {
 
 	//controls:
 	bool mouse_captured = false;
+	bool paused = true;
 
 	//scene:
 	Scene scene;
 	Scene::Camera *camera = nullptr;
+	Scene::Object *cube = nullptr;
+	Scene::Object *rocket = nullptr;
+
+	glm::vec3 camera_center = glm::vec3(0.0f);
 	float camera_radius = 10.0f;
 	float camera_azimuth = glm::radians(60.0f);
 	float camera_elevation = glm::radians(45.0f);

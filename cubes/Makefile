@@ -8,7 +8,7 @@ CPP = g++ -Wall -Werror -std=c++14
 	./hdr_to_cube '$<' 512 '$@'
 
 cape_hill_4k.hdr :
-	wget 'https://hdrihaven.com/hdri/download.php?h=cape_hill&r=4k' -O'$@'
+	wget 'https://hdrihaven.com/files/hdris/cape_hill_4k.hdr' -O'$@'
 
 hdr_to_cube : objs/hdr_to_cube.o objs/load_hdr.o objs/load_save_png.o
 	$(CPP) -o '$@' $^ -lpng -lz

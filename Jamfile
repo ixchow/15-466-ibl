@@ -74,6 +74,7 @@ CLIENT_NAMES =
 	texture_program
 	cube_program
 	cube_diffuse_program
+	cube_reflect_program
 	depth_program
 	Scene
 	Mode

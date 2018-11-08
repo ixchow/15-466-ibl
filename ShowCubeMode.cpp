@@ -4,6 +4,7 @@
 #include "Load.hpp"
 #include "cube_program.hpp"
 #include "cube_diffuse_program.hpp"
+#include "cube_reflect_program.hpp"
 #include "make_vao_for_program.hpp"
 #include "load_save_png.hpp"
 #include "rgbe.hpp"
@@ -85,6 +86,10 @@ Load< GLuint > ship_meshes_for_cube_diffuse_program(LoadTagDefault, [](){
 	return new GLuint(ship_meshes->make_vao_for_program(cube_diffuse_program->program));
 });
 
+Load< GLuint > ship_meshes_for_cube_reflect_program(LoadTagDefault, [](){
+	return new GLuint(ship_meshes->make_vao_for_program(cube_reflect_program->program));
+});
+
 uint32_t cube_mesh_count = 0;
 Load< GLuint > cube_mesh_for_cube_program(LoadTagDefault, [](){
 	//mesh for showing cube map texture:
@@ -139,8 +144,9 @@ ShowCubeMode::ShowCubeMode() {
 		cube_info.textures[0] = *sky_cube;
 		cube_info.texture_targets[0] = GL_TEXTURE_CUBE_MAP;
 		Scene::Transform *transform = scene.new_transform();
-		Scene::Object *cube = scene.new_object(transform);
-		cube->programs[Scene::Object::ProgramTypeDefault] = cube_info;
+		Scene::Object *object = scene.new_object(transform);
+		object->programs[Scene::Object::ProgramTypeDefault] = cube_info;
+		cube = object;
 	}
 
 	{ //add a rocket ship:
@@ -156,8 +162,29 @@ ShowCubeMode::ShowCubeMode() {
 		Scene::Transform *transform = scene.new_transform();
 		Scene::Object *object = scene.new_object(transform);
 		object->programs[Scene::Object::ProgramTypeDefault] = info;
-		transform->position = glm::vec3(2.0f, 0.0f, 0.0f);
+		transform->position = glm::vec3(4.0f, 0.0f, 0.0f);
+		rocket = object;
 	}
+
+	{ //add another rocket ship:
+		Scene::Object::ProgramInfo info;
+		info.program = cube_reflect_program->program;
+		info.vao = *ship_meshes_for_cube_reflect_program;
+		info.start = ship_rocket->start;
+		info.count = ship_rocket->count;
+		info.mvp_mat4 = cube_reflect_program->object_to_clip_mat4;
+		info.mv_mat4x3 = cube_reflect_program->object_to_light_mat4x3;
+		info.itmv_mat3 = cube_reflect_program->normal_to_light_mat3;
+		info.textures[0] = *diffuse_cube;
+		info.texture_targets[0] = GL_TEXTURE_CUBE_MAP;
+		info.textures[1] = *sky_cube;
+		info.texture_targets[1] = GL_TEXTURE_CUBE_MAP;
+		Scene::Transform *transform = scene.new_transform();
+		Scene::Object *object = scene.new_object(transform);
+		object->programs[Scene::Object::ProgramTypeDefault] = info;
+		transform->position = glm::vec3(-4.0f, 0.0f, 0.0f);
+	}
+
 
 
 	{ //make a camera:
@@ -178,6 +205,10 @@ bool ShowCubeMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_s
 		return true;
 	}
 
+	if (evt.type == SDL_KEYDOWN && evt.key.keysym.scancode == SDL_SCANCODE_SPACE) {
+		paused = !paused;
+	}
+
 	if (evt.type == SDL_MOUSEBUTTONDOWN) {
 		if (!mouse_captured) {
 			SDL_SetRelativeMouseMode(SDL_TRUE);
@@ -196,12 +227,19 @@ bool ShowCubeMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_s
 	}
 	if (evt.type == SDL_MOUSEMOTION) {
 		if (mouse_captured) {
-			float yaw = evt.motion.xrel / float(window_size.y) * camera->fovy;
-			float pitch = -evt.motion.yrel / float(window_size.y) * camera->fovy;
+			if (SDL_GetModState() & KMOD_SHIFT) {
+				glm::mat4 mat = camera->transform->make_local_to_world();
+				camera_center -= (evt.motion.xrel / float(window_size.y) * camera_radius) * glm::vec3(mat[0]);
+				camera_center += (evt.motion.yrel / float(window_size.y) * camera_radius) * glm::vec3(mat[1]);
+			} else {
+				float yaw = evt.motion.xrel / float(window_size.y) * camera->fovy;
+				float pitch = -evt.motion.yrel / float(window_size.y) * camera->fovy;
 
-			//update camera angles:
-			camera_elevation = glm::clamp(camera_elevation + pitch, glm::radians(-80.0f), glm::radians(80.0f));
-			camera_azimuth = camera_azimuth + yaw;
+				//update camera angles:
+				camera_elevation = glm::clamp(camera_elevation + pitch, glm::radians(-80.0f), glm::radians(80.0f));
+			
+				camera_azimuth = camera_azimuth + yaw;
+			}
 		}
 	}
 
@@ -213,13 +251,19 @@ void ShowCubeMode::update(float elapsed) {
 	float se = std::sin(camera_elevation);
 	float ca = std::cos(camera_azimuth);
 	float sa = std::sin(camera_azimuth);
-	camera->transform->position = camera_radius * glm::vec3(ce * ca, ce * sa, se);
+	camera->transform->position = camera_center + camera_radius * glm::vec3(ce * ca, ce * sa, se);
 	camera->transform->rotation =
 		glm::quat_cast(glm::transpose(glm::mat3(glm::lookAt(
 			camera->transform->position,
-			glm::vec3(0.0f, 0.0f, 0.0f),
+			camera_center,
 			glm::vec3(0.0f, 0.0f, 1.0f)
 		))));
+	
+	if (!paused) {
+		if (rocket) {
+			rocket->transform->rotation = glm::normalize(rocket->transform->rotation * glm::angleAxis(glm::radians(60.0f * elapsed), glm::normalize(glm::vec3(1.0f, 0.2f, 0.6f))));
+		}
+	}
 }
 
 void ShowCubeMode::draw(glm::uvec2 const &drawable_size) {
@@ -264,6 +308,9 @@ void ShowCubeMode::draw(glm::uvec2 const &drawable_size) {
 		//glDisable(GL_CULL_FACE);
 		//glCullFace(GL_BACK);
 	}
+
+	glUseProgram(cube_reflect_program->program);
+	glUniform3fv(cube_reflect_program->eye_vec3, 1, glm::value_ptr(glm::vec3(camera->transform->make_local_to_world()[3])));
 
 
 	//Note: no light positions to set up, yay!
