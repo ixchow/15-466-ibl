@@ -10,14 +10,21 @@ cape_hill_4k.hdr :
 hdr_to_cube : objs/hdr_to_cube.o objs/load_hdr.o objs/load_save_png.o
 	$(CPP) -o '$@' $^ -lpng -lz
 
-objs/hdr_to_cube.o : hdr_to_cube.cpp load_hdr.hpp ../load_save_png.hpp ../rgbe.hpp objs
+blur_cube : objs/blur_cube.o objs/load_save_png.o
+	$(CPP) -o '$@' $^ -lpng -lz
+
+objs/blur_cube.o : blur_cube.cpp ../load_save_png.hpp ../rgbe.hpp
+	mkdir -p objs
 	$(CPP) -c -o '$@' '$<' -I..
 
-objs/load_hdr.o : load_hdr.cpp load_hdr.hpp objs
+objs/hdr_to_cube.o : hdr_to_cube.cpp load_hdr.hpp ../load_save_png.hpp ../rgbe.hpp
+	mkdir -p objs
+	$(CPP) -c -o '$@' '$<' -I..
+
+objs/load_hdr.o : load_hdr.cpp load_hdr.hpp
+	mkdir -p objs
 	$(CPP) -c -o '$@' '$<'
 
-objs/load_save_png.o : ../load_save_png.cpp ../load_save_png.hpp objs
+objs/load_save_png.o : ../load_save_png.cpp ../load_save_png.hpp
+	mkdir -p objs
 	$(CPP) -c -o '$@' '$<'
-
-objs :
-	mkdir objs
