@@ -7,14 +7,17 @@ CPP = g++ -Wall -Werror -std=c++14
 cape_hill_4k.hdr :
 	wget 'https://hdrihaven.com/hdri/download.php?h=cape_hill&r=4k' -O'$@'
 
-hdr_to_cube : hdr_to_cube.o load_hdr.o load_save_png.o
+hdr_to_cube : objs/hdr_to_cube.o objs/load_hdr.o objs/load_save_png.o
 	$(CPP) -o '$@' $^ -lpng -lz
 
-hdr_to_cube.o : hdr_to_cube.cpp load_hdr.hpp load_save_png.hpp ../rgbe.hpp
+objs/hdr_to_cube.o : hdr_to_cube.cpp load_hdr.hpp ../load_save_png.hpp ../rgbe.hpp objs
 	$(CPP) -c -o '$@' '$<' -I..
 
-load_hdr.o : load_hdr.cpp load_hdr.hpp
+objs/load_hdr.o : load_hdr.cpp load_hdr.hpp objs
 	$(CPP) -c -o '$@' '$<'
 
-load_save_png.o : load_save_png.cpp load_save_png.hpp
+objs/load_save_png.o : ../load_save_png.cpp ../load_save_png.hpp objs
 	$(CPP) -c -o '$@' '$<'
+
+objs :
+	mkdir objs
