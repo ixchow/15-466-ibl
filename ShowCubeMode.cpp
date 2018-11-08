@@ -3,6 +3,7 @@
 
 #include "Load.hpp"
 #include "cube_program.hpp"
+#include "cube_diffuse_program.hpp"
 #include "make_vao_for_program.hpp"
 #include "load_save_png.hpp"
 #include "rgbe.hpp"
@@ -69,6 +70,21 @@ Load< GLuint > sky_cube(LoadTagDefault, [](){
 	return new GLuint(load_cube(data_path("cape_hill_512.png")));
 });
 
+Load< GLuint > diffuse_cube(LoadTagDefault, [](){
+	return new GLuint(load_cube(data_path("cape_hill_diffuse.png")));
+});
+
+MeshBuffer::Mesh const *ship_rocket = nullptr;
+Load< MeshBuffer > ship_meshes(LoadTagDefault, [](){
+	auto ret = new MeshBuffer(data_path("ship.pnc"));
+	ship_rocket = &(ret->lookup("Rocket"));
+	return ret;
+});
+
+Load< GLuint > ship_meshes_for_cube_diffuse_program(LoadTagDefault, [](){
+	return new GLuint(ship_meshes->make_vao_for_program(cube_diffuse_program->program));
+});
+
 uint32_t cube_mesh_count = 0;
 Load< GLuint > cube_mesh_for_cube_program(LoadTagDefault, [](){
 	//mesh for showing cube map texture:
@@ -126,6 +142,23 @@ ShowCubeMode::ShowCubeMode() {
 		Scene::Object *cube = scene.new_object(transform);
 		cube->programs[Scene::Object::ProgramTypeDefault] = cube_info;
 	}
+
+	{ //add a rocket ship:
+		Scene::Object::ProgramInfo info;
+		info.program = cube_diffuse_program->program;
+		info.vao = *ship_meshes_for_cube_diffuse_program;
+		info.start = ship_rocket->start;
+		info.count = ship_rocket->count;
+		info.mvp_mat4 = cube_diffuse_program->object_to_clip_mat4;
+		info.itmv_mat3 = cube_diffuse_program->normal_to_light_mat3;
+		info.textures[0] = *diffuse_cube;
+		info.texture_targets[0] = GL_TEXTURE_CUBE_MAP;
+		Scene::Transform *transform = scene.new_transform();
+		Scene::Object *object = scene.new_object(transform);
+		object->programs[Scene::Object::ProgramTypeDefault] = info;
+		transform->position = glm::vec3(2.0f, 0.0f, 0.0f);
+	}
+
 
 	{ //make a camera:
 		Scene::Transform *transform = scene.new_transform();

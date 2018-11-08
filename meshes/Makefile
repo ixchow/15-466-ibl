@@ -19,6 +19,8 @@ all : \
 	$(DIST)/plant.pnc \
 	$(DIST)/bridge-deploy.tanim \
 	$(DIST)/plant.banims \
+	$(DIST)/ship.pnc \
+
 
 $(DIST)/bridge-deploy.tanim : bridge.blend export-transform-animation.py
 	$(BLENDER) --background --python export-transform-animation.py -- '$<' 'Seg1,Seg2,Camera' 1 60 '$@'
