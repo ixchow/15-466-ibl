@@ -35,7 +35,7 @@ TransformAnimation::TransformAnimation(std::string const &filename) {
 		throw std::runtime_error("xff0 chunk in '" + filename + "' contains a partial frame.");
 	}
 
-	frames = frames_data.size() / names.size();
+	frames = uint32_t(frames_data.size() / names.size());
 
 	if (frames == 0) {
 		throw std::runtime_error("Animation in '" + filename + "' contains zero frames.");

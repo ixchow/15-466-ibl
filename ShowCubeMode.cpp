@@ -111,7 +111,7 @@ Load< GLuint > cube_mesh_for_cube_program(LoadTagDefault, [](){
 		v7,v3,v6, v6,v3,v2
 	};
 
-	cube_mesh_count = verts.size();
+	cube_mesh_count = uint32_t(verts.size());
 
 	//upload verts to GPU:
 	GLuint vbo = 0;

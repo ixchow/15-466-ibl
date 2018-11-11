@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <algorithm>
 
 //see radiance source code at ray/src/common/color.c -- setcolr() function
 
