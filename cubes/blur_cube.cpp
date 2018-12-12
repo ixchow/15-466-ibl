@@ -38,8 +38,8 @@ enum Face {
 };
 
 int main(int argc, char **argv) {
-	if (argc != 6) {
-		std::cerr << "Usage:\n\t./blur_cube <in.png> <diffuse|...> <samples> <out size> <out.png>\nBlur a cubemap (stored as an rgbe png, with faces stacked +x/-x/+y/-y/+z/-z top-to-bottom) into another cubemap (stored into the same format)" << std::endl;
+	if (argc != 6 && argc != 7) {
+		std::cerr << "Usage:\n\t./blur_cube <in.png> <diffuse|bokeh|...> <samples> <out size> <out.png> [brightest]\nBlur a cubemap (stored as an rgbe png, with faces stacked +x/-x/+y/-y/+z/-z top-to-bottom) into another cubemap (stored into the same format)" << std::endl;
 		return 1;
 	}
 	std::string in_file = argv[1];
@@ -49,6 +49,8 @@ int main(int argc, char **argv) {
 	out_size.x = std::atoi(argv[4]);
 	out_size.y = out_size.x * 6;
 	std::string out_file = argv[5];
+	int32_t brightest = 10000;
+	if (argc == 7) brightest = std::atoi(argv[6]);
 
 	struct BrightDirection {
 		glm::vec3 direction = glm::vec3(0.0f);
@@ -80,12 +82,40 @@ int main(int argc, char **argv) {
 			}
 			return ret;
 		};
+	} else if (mode == "bokeh") {
+		constexpr float angle = 0.7f / 180.0f * float(M_PI);
+		float max_r = std::sin(angle);
+		float min_y = std::sqrt(1.0f - max_r * max_r);
+		make_sample = [min_y]() -> glm::vec3 {
+			//try to uniformly sample a disc...
+			static std::mt19937 mt(0x12341234);
+			glm::vec2 rv(mt() / float(mt.max()), mt() / float(mt.max()));
+			float phi = rv.x * 2.0f * M_PI;
+			//float r = max_r * std::sqrt(rv.y);
+			rv.y = min_y + (1.0f - min_y) * rv.y;
+			float r = std::sqrt(1.0f - rv.y * rv.y);
+			return glm::vec3(
+				std::cos(phi) * r,
+				std::sin(phi) * r,
+				rv.y
+			);
+		};
+		float thresh = std::cos(angle); //hmmmmmmm
+		sum_bright_directions = [&bright_directions,thresh](glm::vec3 n) -> glm::vec3 {
+			glm::vec3 ret = glm::vec3(0.0f);
+			for (auto const &bd : bright_directions) {
+			 	if (glm::dot(bd.direction, n) > thresh) {
+					ret += bd.light;
+				}
+			}
+			return ret;
+		};
 	} else if (mode == "sharp") {
 		make_sample = []() -> glm::vec3 {
 			return glm::vec3(0.0f, 0.0f, 1.0f);
 		};
 	} else {
-		std::cerr << "Blur must be 'diffuse'." << std::endl;
+		std::cerr << "Blur must be 'diffuse', 'bokeh', or 'sharp'." << std::endl;
 		return 1;
 	}
 	if (out_size.x < 1) {
@@ -118,7 +148,7 @@ int main(int argc, char **argv) {
 	std::cout << " done." << std::endl;
 
 	if (sum_bright_directions) {
-		uint32_t bright = std::min< uint32_t >(in_data.size(), 200);
+		uint32_t bright = std::min< uint32_t >(in_data.size(), brightest);
 		std::cout << "Separating the brightest " << bright << " pixels..."; std::cout.flush();
 		std::vector< std::pair< float, uint32_t > > pixels;
 		pixels.reserve(in_data.size());
@@ -184,7 +214,7 @@ int main(int argc, char **argv) {
 			else            { sc =  dir.x; tc = -dir.z; ma =-dir.y; f = NegativeY; }
 		} else {
 			if (dir.z >= 0) { sc =  dir.x; tc = -dir.y; ma = dir.z; f = PositiveZ; }
-			else            { sc =  dir.x; tc = -dir.y; ma =-dir.z; f = NegativeZ; }
+			else            { sc = -dir.x; tc = -dir.y; ma =-dir.z; f = NegativeZ; }
 		}
 
 		int32_t s = std::floor(0.5f * (sc / ma + 1.0f) * in_size.x);
